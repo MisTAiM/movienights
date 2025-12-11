@@ -1,0 +1,210 @@
+/* ========================================
+   LuxuryLogoAnimation.css - Animated Logo Styles
+   ======================================== */
+
+.luxury-logo {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Logo Circle */
+.logo-circle {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(184, 134, 11, 0.1));
+  border: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: logoPulse 2s ease-in-out infinite;
+  z-index: 5;
+}
+
+@keyframes logoPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.6);
+  }
+}
+
+.logo-inner {
+  width: 70%;
+  height: 70%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.play-icon {
+  transform-origin: center;
+  animation: playIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes playIconPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+/* Pulse Rings */
+.pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: pulseExpand 2s ease-out infinite;
+}
+
+.pulse-ring.delay-1 {
+  animation-delay: 0.6s;
+}
+
+.pulse-ring.delay-2 {
+  animation-delay: 1.2s;
+}
+
+@keyframes pulseExpand {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Orbit Rings */
+.orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(212, 175, 55, 0.2);
+  animation: orbitRotate linear infinite;
+}
+
+.orbit-ring.orbit-1 {
+  width: 120px;
+  height: 120px;
+  animation-duration: 8s;
+}
+
+.orbit-ring.orbit-2 {
+  width: 140px;
+  height: 140px;
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+
+.orbit-ring.orbit-3 {
+  width: 160px;
+  height: 160px;
+  animation-duration: 16s;
+}
+
+@keyframes orbitRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.orbit-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, var(--gold-light), var(--accent));
+  border-radius: 50%;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
+}
+
+/* Sparkles */
+.sparkles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--gold-light);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: rotate(var(--angle)) translateY(-80px);
+  animation: sparkleTwinkle 1.5s ease-in-out infinite;
+  animation-delay: var(--delay);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: rotate(var(--angle)) translateY(-80px) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(-80px) scale(1.2);
+  }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .luxury-logo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .logo-circle {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .orbit-ring,
+  .sparkles {
+    display: none;
+  }
+  
+  .pulse-ring {
+    animation-duration: 1.5s;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .logo-circle,
+  .play-icon,
+  .pulse-ring,
+  .orbit-ring,
+  .sparkle {
+    animation: none !important;
+  }
+  
+  .pulse-ring {
+    display: none;
+  }
+}

@@ -1,0 +1,130 @@
+/* ========================================
+   THEMES.CSS - Dark/Light Theme Variables
+   ======================================== */
+
+/* Dark Theme (Default) */
+[data-theme="dark"],
+:root {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #252525;
+  --text-primary: #f5f5f5;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+  --accent: #d4af37;
+  --accent-hover: #b8860b;
+  --gold-light: #ffd700;
+  --gold-dark: #b8860b;
+  --border-color: rgba(212, 175, 55, 0.3);
+  --border-color-light: rgba(212, 175, 55, 0.1);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.7);
+  --modal-backdrop: rgba(0, 0, 0, 0.9);
+  --gradient-primary: linear-gradient(135deg, #1a1a1a, #0d0d0d);
+  --gradient-card: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
+  --gradient-gold: linear-gradient(135deg, #d4af37, #b8860b);
+  --gradient-gold-light: linear-gradient(135deg, #ffd700, #d4af37);
+  --carbon-pattern: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.02) 2px,
+    rgba(255, 255, 255, 0.02) 4px
+  );
+  
+  /* Status Colors */
+  --status-watching: #8b5cf6;
+  --status-completed: #22c55e;
+  --status-plan: #3b82f6;
+  --status-dropped: #ef4444;
+  --status-success: #22c55e;
+  --status-error: #ef4444;
+  --status-info: #3b82f6;
+  --status-warning: #f59e0b;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --bg-primary: #f5f5f0;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f0e8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --accent: #b8860b;
+  --accent-hover: #d4af37;
+  --gold-light: #d4af37;
+  --gold-dark: #8b6914;
+  --border-color: rgba(139, 105, 20, 0.3);
+  --border-color-light: rgba(139, 105, 20, 0.1);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.25);
+  --modal-backdrop: rgba(0, 0, 0, 0.7);
+  --gradient-primary: linear-gradient(135deg, #ffffff, #f5f5f0);
+  --gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(245, 245, 240, 0.9));
+  --gradient-gold: linear-gradient(135deg, #b8860b, #8b6914);
+  --gradient-gold-light: linear-gradient(135deg, #d4af37, #b8860b);
+  --carbon-pattern: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.02) 2px,
+    rgba(0, 0, 0, 0.02) 4px
+  );
+}
+
+/* Theme Transition */
+body,
+.header,
+.nav-tab,
+.content-card,
+.modal-content,
+.settings-menu {
+  transition: 
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* Theme-specific adjustments */
+[data-theme="light"] body {
+  background-color: var(--bg-primary);
+}
+
+[data-theme="light"] body::before {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 100px,
+    rgba(139, 105, 20, 0.03) 100px,
+    rgba(139, 105, 20, 0.03) 200px
+  );
+}
+
+[data-theme="light"] .content-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .modal-content {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: rgba(212, 175, 55, 0.6);
+    --text-secondary: #c0c0c0;
+  }
+}
+
+/* TV/Large Screen Optimizations */
+@media (min-width: 1921px) {
+  :root {
+    --spacing-sm: 1.25rem;
+    --spacing-md: 2rem;
+    --spacing-lg: 3rem;
+  }
+}

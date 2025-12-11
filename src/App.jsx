@@ -20,6 +20,7 @@ import LiveTVSection from './components/sections/LiveTVSection';
 import GamesSection from './components/sections/GamesSection';
 import MusicSection from './components/sections/MusicSection';
 import ReadingSection from './components/sections/ReadingSection';
+import FocusSection from './components/sections/FocusSection';
 import CollectionSection from './components/sections/CollectionSection';
 import WatchlistsSection from './components/sections/WatchlistsSection';
 import ListsSection from './components/sections/ListsSection';
@@ -230,6 +231,8 @@ function App() {
         return <MusicSection />;
       case 'reading':
         return <ReadingSection />;
+      case 'focus':
+        return <FocusSection />;
       case 'collection':
         return <CollectionSection {...sectionProps} />;
       case 'watchlists':

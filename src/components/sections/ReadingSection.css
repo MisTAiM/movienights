@@ -1,5 +1,5 @@
 /* ========================================
-   ReadingSection.css - eBooks & Comics Styles
+   ReadingSection.css - Reading Hub Styles
    ======================================== */
 
 .reading-section {
@@ -12,98 +12,127 @@
   font-family: 'Cinzel', serif;
   font-size: 2rem;
   color: var(--gold-light);
-  margin-bottom: 24px;
   text-align: center;
+  margin-bottom: 24px;
 }
 
 /* Main Tabs */
-.main-tabs {
+.reading-tabs {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
-.main-tab {
-  padding: 14px 32px;
+.reading-tab {
+  padding: 12px 32px;
   background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
-  border: 2px solid rgba(212, 175, 55, 0.2);
-  border-radius: 30px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 25px;
   color: var(--text-secondary);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.main-tab:hover {
+.reading-tab:hover {
   border-color: var(--accent);
   color: var(--text-primary);
-  transform: translateY(-2px);
 }
 
-.main-tab.active {
+.reading-tab.active {
   background: linear-gradient(135deg, var(--accent), var(--gold-dark));
   border-color: transparent;
   color: var(--bg-primary);
 }
 
-/* Category Tabs */
-.reading-section .category-tabs {
+/* Book Search */
+.book-search {
   display: flex;
+  gap: 10px;
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+
+.book-search input {
+  flex: 1;
+  padding: 14px 20px;
+  background: linear-gradient(145deg, rgba(40, 40, 40, 0.9), rgba(25, 25, 25, 0.95));
+  border: 2px solid rgba(212, 175, 55, 0.2);
+  border-radius: 25px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.book-search input::placeholder {
+  color: var(--text-secondary);
+}
+
+.book-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.book-search button {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--accent), var(--gold-dark));
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.book-search button:hover {
+  transform: scale(1.05);
+}
+
+/* Category Tabs */
+.category-tabs {
+  display: flex;
+  justify-content: center;
   gap: 10px;
   margin-bottom: 24px;
   flex-wrap: wrap;
-  justify-content: center;
 }
 
-.reading-section .category-tab {
-  padding: 10px 20px;
-  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
-  border: 1px solid rgba(212, 175, 55, 0.2);
+.category-tab {
+  padding: 10px 22px;
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(22, 22, 22, 0.95));
+  border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 20px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.reading-section .category-tab:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
-}
-
-.reading-section .category-tab.active {
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(184, 134, 11, 0.1));
+.category-tab:hover,
+.category-tab.active {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-/* Section Description */
-.section-description {
-  text-align: center;
-  color: var(--text-secondary);
-  margin-bottom: 20px;
-  font-size: 14px;
+.category-tab.active {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(184, 134, 11, 0.08));
 }
 
 /* Sites Grid */
-.sites-section {
-  margin-bottom: 32px;
-}
-
 .sites-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: 14px;
+  margin-bottom: 32px;
 }
 
 .site-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(22, 22, 22, 0.95));
   border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 14px;
   cursor: pointer;
@@ -113,78 +142,80 @@
 
 .site-card:hover {
   border-color: var(--accent);
-  transform: translateY(-4px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
 }
 
 .site-card.featured {
-  background: linear-gradient(145deg, rgba(212, 175, 55, 0.08), rgba(20, 20, 20, 0.95));
-  border-color: rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.4);
+  background: linear-gradient(145deg, rgba(40, 35, 20, 0.9), rgba(25, 22, 15, 0.95));
 }
 
 .featured-badge {
   position: absolute;
   top: -8px;
   right: 12px;
-  font-size: 10px;
-  color: var(--accent);
-  background: var(--bg-primary);
   padding: 4px 10px;
+  background: linear-gradient(135deg, var(--accent), var(--gold-dark));
   border-radius: 10px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  font-size: 10px;
+  color: var(--bg-primary);
+  font-weight: 600;
 }
 
 .site-icon {
-  font-size: 36px;
+  font-size: 32px;
   flex-shrink: 0;
 }
 
 .site-info {
   flex: 1;
-  min-width: 0;
 }
 
 .site-info h4 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 4px 0;
+  margin-bottom: 4px;
 }
 
 .site-info p {
   font-size: 12px;
   color: var(--text-secondary);
-  margin: 0;
 }
 
 .external-arrow {
-  color: var(--text-secondary);
   font-size: 18px;
+  color: var(--accent);
   opacity: 0;
-  transition: all 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .site-card:hover .external-arrow {
   opacity: 1;
-  transform: translate(3px, -3px);
 }
 
-/* Genre Section */
-.genre-section {
+/* Genres Section */
+.genres-section,
+.classics-section {
   margin-bottom: 32px;
 }
 
-.genre-section h3 {
+.genres-section h3,
+.classics-section h3,
+.manga-section h3,
+.reading-list-section h3,
+.quick-links-section h3 {
   font-family: 'Cinzel', serif;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   color: var(--accent);
   margin-bottom: 16px;
 }
 
-.genre-grid {
+.genres-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
 }
 
 .genre-btn {
@@ -192,8 +223,8 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 20px;
-  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
+  padding: 18px 12px;
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(22, 22, 22, 0.95));
   border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 12px;
   cursor: pointer;
@@ -210,26 +241,57 @@
 }
 
 .genre-name {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-primary);
   text-align: center;
 }
 
-/* Popular Manga */
-.popular-manga {
-  margin-bottom: 32px;
+/* Classics Grid */
+.classics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
-.popular-manga h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.3rem;
+.classic-card {
+  padding: 16px;
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(22, 22, 22, 0.95));
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.classic-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.classic-card h4 {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.classic-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.read-badge {
+  font-size: 11px;
   color: var(--accent);
-  margin-bottom: 16px;
+}
+
+/* Manga Section */
+.manga-section {
+  margin-bottom: 32px;
 }
 
 .manga-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
@@ -238,20 +300,18 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.95));
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.9), rgba(22, 22, 22, 0.95));
   border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 12px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .manga-card:hover {
-  border-color: var(--accent);
-  transform: translateX(5px);
+  border-color: rgba(212, 175, 55, 0.3);
 }
 
 .manga-icon {
   font-size: 28px;
-  flex-shrink: 0;
 }
 
 .manga-info {
@@ -261,45 +321,38 @@
 
 .manga-info h4 {
   font-size: 14px;
-  font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 4px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 4px;
 }
 
 .manga-meta {
   display: flex;
-  align-items: center;
   gap: 8px;
+  font-size: 11px;
 }
 
 .chapters {
-  font-size: 11px;
   color: var(--text-secondary);
 }
 
 .status {
-  font-size: 10px;
   padding: 2px 8px;
-  border-radius: 8px;
-  text-transform: uppercase;
-  font-weight: 600;
+  border-radius: 10px;
+  font-weight: 500;
 }
 
 .status.ongoing {
-  background: rgba(40, 167, 69, 0.15);
+  background: rgba(40, 167, 69, 0.2);
   color: #28a745;
 }
 
-.status.completed {
-  background: rgba(23, 162, 184, 0.15);
-  color: #17a2b8;
+.status.ended {
+  background: rgba(108, 117, 125, 0.2);
+  color: #6c757d;
 }
 
 .status.hiatus {
-  background: rgba(255, 193, 7, 0.15);
+  background: rgba(255, 193, 7, 0.2);
   color: #ffc107;
 }
 
@@ -309,55 +362,51 @@
 }
 
 .manga-btn {
-  width: 32px;
-  height: 32px;
+  padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.manga-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
+.manga-btn.read {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(184, 134, 11, 0.1));
+  border-color: rgba(212, 175, 55, 0.3);
 }
 
-.manga-btn.read-btn:hover {
-  background: rgba(212, 175, 55, 0.2);
+.manga-btn.read:hover {
+  background: linear-gradient(135deg, var(--accent), var(--gold-dark));
+  color: var(--bg-primary);
 }
 
-.manga-btn.list-btn.in-list {
+.manga-btn.list {
+  width: 36px;
+  padding: 8px;
+  text-align: center;
+}
+
+.manga-btn.list.in-list {
   background: rgba(40, 167, 69, 0.2);
   border-color: #28a745;
   color: #28a745;
 }
 
-/* Reading List */
+/* Reading List Section */
 .reading-list-section {
-  margin-bottom: 32px;
   padding: 20px;
-  background: linear-gradient(145deg, rgba(40, 167, 69, 0.05), rgba(20, 20, 20, 0.95));
-  border: 1px solid rgba(40, 167, 69, 0.2);
+  background: linear-gradient(145deg, rgba(25, 25, 25, 0.9), rgba(18, 18, 18, 0.95));
+  border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 16px;
-}
-
-.reading-list-section h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-  color: #28a745;
-  margin-bottom: 16px;
+  margin-bottom: 32px;
 }
 
 .reading-list {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .reading-list-item {
@@ -365,13 +414,13 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(40, 167, 69, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.15);
   border-radius: 20px;
 }
 
 .item-icon {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .item-name {
@@ -379,120 +428,114 @@
   color: var(--text-primary);
 }
 
-.remove-btn {
-  width: 20px;
-  height: 20px;
+.item-read,
+.item-remove {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: none;
-  background: rgba(220, 53, 69, 0.2);
-  color: #dc3545;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.remove-btn:hover {
-  background: rgba(220, 53, 69, 0.4);
+.item-read:hover {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--accent);
+}
+
+.item-remove:hover {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
 }
 
 /* Quick Links */
-.reading-section .quick-links {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(212, 175, 55, 0.1);
-}
-
-.reading-section .quick-links h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-  color: var(--accent);
-  margin-bottom: 16px;
+.quick-links-section {
+  padding: 24px;
+  background: linear-gradient(145deg, rgba(25, 25, 25, 0.8), rgba(18, 18, 18, 0.9));
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 16px;
   text-align: center;
 }
 
-.reading-section .quick-links-grid {
+.quick-links {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.reading-section .quick-links-grid a {
-  padding: 10px 18px;
+.quick-links a {
+  padding: 10px 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: 20px;
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 13px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.reading-section .quick-links-grid a:hover {
+.quick-links a:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(212, 175, 55, 0.1);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .main-tabs {
+  .reading-tabs {
     flex-direction: column;
     align-items: center;
   }
   
-  .main-tab {
+  .reading-tab {
     width: 100%;
     max-width: 300px;
+    text-align: center;
   }
   
   .sites-grid {
     grid-template-columns: 1fr;
   }
   
-  .genre-grid {
+  .manga-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .genres-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .manga-grid {
+  .classics-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 480px) {
-  .reading-section .category-tabs {
+  .category-tabs {
     gap: 6px;
   }
   
-  .reading-section .category-tab {
+  .category-tab {
     padding: 8px 14px;
-    font-size: 12px;
+    font-size: 11px;
   }
   
-  .site-card {
-    padding: 14px;
-  }
-  
-  .site-icon {
-    font-size: 28px;
-  }
-  
-  .site-info h4 {
-    font-size: 14px;
-  }
-  
-  .genre-grid {
+  .genres-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
   .genre-btn {
-    padding: 14px;
+    padding: 14px 8px;
   }
   
   .genre-icon {
     font-size: 24px;
+  }
+  
+  .genre-name {
+    font-size: 10px;
   }
 }

@@ -1,152 +1,157 @@
 /* ========================================
-   ReadingSection.jsx - eBooks & Comics Hub
+   ReadingSection.jsx - eBooks & Comics Hub (Fixed)
    ======================================== */
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import './ReadingSection.css';
 
-// eBook sources
+// eBook sources with correct URLs
 const EBOOK_SOURCES = {
   free: {
     name: '📖 Free eBooks',
-    description: 'Legal free books',
     sites: [
-      { id: 'gutenberg', name: 'Project Gutenberg', icon: '📚', url: 'https://www.gutenberg.org/', description: '70,000+ free classics' },
-      { id: 'archive', name: 'Internet Archive', icon: '🏛️', url: 'https://archive.org/details/texts', description: 'Millions of free texts' },
-      { id: 'openlibrary', name: 'Open Library', icon: '📖', url: 'https://openlibrary.org/', description: 'Borrow free books' },
-      { id: 'standardebooks', name: 'Standard Ebooks', icon: '✨', url: 'https://standardebooks.org/', description: 'Beautifully formatted classics' },
-      { id: 'manybooks', name: 'ManyBooks', icon: '📕', url: 'https://manybooks.net/', description: '50,000+ free titles' },
-      { id: 'feedbooks', name: 'Feedbooks', icon: '📗', url: 'https://www.feedbooks.com/publicdomain', description: 'Public domain books' },
-      { id: 'librivox', name: 'LibriVox', icon: '🎧', url: 'https://librivox.org/', description: 'Free audiobooks' },
-      { id: 'loyalbooks', name: 'Loyal Books', icon: '🔊', url: 'http://www.loyalbooks.com/', description: 'Free audiobooks & ebooks' }
+      { id: 'gutenberg', name: 'Project Gutenberg', icon: '📚', url: 'https://www.gutenberg.org/', desc: '70,000+ free classics' },
+      { id: 'archive', name: 'Internet Archive', icon: '🏛️', url: 'https://archive.org/details/texts', desc: 'Millions of free texts' },
+      { id: 'openlibrary', name: 'Open Library', icon: '📖', url: 'https://openlibrary.org/', desc: 'Borrow free books' },
+      { id: 'standardebooks', name: 'Standard Ebooks', icon: '✨', url: 'https://standardebooks.org/', desc: 'Beautifully formatted' },
+      { id: 'manybooks', name: 'ManyBooks', icon: '📕', url: 'https://manybooks.net/', desc: '50,000+ free titles' },
+      { id: 'feedbooks', name: 'Feedbooks', icon: '📗', url: 'https://www.feedbooks.com/publicdomain', desc: 'Public domain books' },
+      { id: 'librivox', name: 'LibriVox', icon: '🎧', url: 'https://librivox.org/', desc: 'Free audiobooks' },
+      { id: 'loyalbooks', name: 'Loyal Books', icon: '🔊', url: 'http://www.loyalbooks.com/', desc: 'Audiobooks & ebooks' }
     ]
   },
   libraries: {
     name: '🏛️ Digital Libraries',
-    description: 'Library resources',
     sites: [
-      { id: 'overdrive', name: 'OverDrive/Libby', icon: '📱', url: 'https://www.overdrive.com/', description: 'Library ebooks & audiobooks' },
-      { id: 'hoopla', name: 'Hoopla', icon: '🎬', url: 'https://www.hoopladigital.com/', description: 'Library streaming' },
-      { id: 'kanopy', name: 'Kanopy', icon: '🎥', url: 'https://www.kanopy.com/', description: 'Library films' },
-      { id: 'worldcat', name: 'WorldCat', icon: '🌍', url: 'https://www.worldcat.org/', description: 'Find library books' }
+      { id: 'overdrive', name: 'OverDrive/Libby', icon: '📱', url: 'https://www.overdrive.com/', desc: 'Library ebooks' },
+      { id: 'hoopla', name: 'Hoopla', icon: '🎬', url: 'https://www.hoopladigital.com/', desc: 'Library streaming' },
+      { id: 'kanopy', name: 'Kanopy', icon: '🎥', url: 'https://www.kanopy.com/', desc: 'Library films' },
+      { id: 'worldcat', name: 'WorldCat', icon: '🌍', url: 'https://www.worldcat.org/', desc: 'Find library books' }
     ]
   },
   stores: {
     name: '🛒 Book Stores',
-    description: 'Buy ebooks',
     sites: [
-      { id: 'kindle', name: 'Kindle Store', icon: '📘', url: 'https://www.amazon.com/kindle-dbs/storefront', description: 'Amazon Kindle' },
-      { id: 'kobo', name: 'Kobo', icon: '📙', url: 'https://www.kobo.com/', description: 'Kobo eBooks' },
-      { id: 'google-books', name: 'Google Books', icon: '📚', url: 'https://books.google.com/', description: 'Google Play Books' },
-      { id: 'apple-books', name: 'Apple Books', icon: '🍎', url: 'https://www.apple.com/apple-books/', description: 'Apple Books' },
-      { id: 'scribd', name: 'Scribd', icon: '📜', url: 'https://www.scribd.com/', description: 'Subscription service' },
-      { id: 'audible', name: 'Audible', icon: '🎧', url: 'https://www.audible.com/', description: 'Audiobooks' }
+      { id: 'kindle', name: 'Kindle Store', icon: '📘', url: 'https://www.amazon.com/kindle-dbs/storefront', desc: 'Amazon Kindle' },
+      { id: 'kobo', name: 'Kobo', icon: '📙', url: 'https://www.kobo.com/', desc: 'Kobo eBooks' },
+      { id: 'google-books', name: 'Google Books', icon: '📚', url: 'https://books.google.com/', desc: 'Google Play Books' },
+      { id: 'apple-books', name: 'Apple Books', icon: '🍎', url: 'https://www.apple.com/apple-books/', desc: 'Apple Books' },
+      { id: 'scribd', name: 'Scribd', icon: '📜', url: 'https://www.scribd.com/', desc: 'Subscription service' },
+      { id: 'audible', name: 'Audible', icon: '🎧', url: 'https://www.audible.com/', desc: 'Audiobooks' }
     ]
   }
 };
 
-// Comic sources
+// Comic/Manga sources
 const COMIC_SOURCES = {
   manga: {
     name: '🎌 Manga',
-    description: 'Read manga online',
     sites: [
-      { id: 'mangadex', name: 'MangaDex', icon: '📖', url: 'https://mangadex.org/', description: 'Free manga reader', featured: true },
-      { id: 'mangaplus', name: 'MANGA Plus', icon: '🔴', url: 'https://mangaplus.shueisha.co.jp/', description: 'Official Shueisha', featured: true },
-      { id: 'viz', name: 'VIZ Manga', icon: '📕', url: 'https://www.viz.com/shonenjump', description: 'Shonen Jump official' },
-      { id: 'crunchyroll-manga', name: 'Crunchyroll Manga', icon: '🟠', url: 'https://www.crunchyroll.com/comics/manga', description: 'Crunchyroll manga' },
-      { id: 'mangasee', name: 'MangaSee', icon: '👁️', url: 'https://mangasee123.com/', description: 'Large manga library' },
-      { id: 'manganato', name: 'MangaNato', icon: '📗', url: 'https://manganato.com/', description: 'Popular manga site' },
-      { id: 'webtoon', name: 'Webtoon', icon: '📱', url: 'https://www.webtoons.com/', description: 'Korean webcomics', featured: true },
-      { id: 'tapas', name: 'Tapas', icon: '🎨', url: 'https://tapas.io/', description: 'Webcomics & novels' }
+      { id: 'mangadex', name: 'MangaDex', icon: '📖', url: 'https://mangadex.org/', desc: 'Free manga reader', featured: true },
+      { id: 'mangaplus', name: 'MANGA Plus', icon: '🔴', url: 'https://mangaplus.shueisha.co.jp/', desc: 'Official Shueisha', featured: true },
+      { id: 'viz', name: 'VIZ Manga', icon: '📕', url: 'https://www.viz.com/shonenjump', desc: 'Shonen Jump official' },
+      { id: 'mangasee', name: 'MangaSee', icon: '👁️', url: 'https://mangasee123.com/', desc: 'Large manga library' },
+      { id: 'manganato', name: 'MangaNato', icon: '📗', url: 'https://manganato.com/', desc: 'Popular manga site' },
+      { id: 'webtoon', name: 'Webtoon', icon: '📱', url: 'https://www.webtoons.com/', desc: 'Korean webcomics', featured: true },
+      { id: 'tapas', name: 'Tapas', icon: '🎨', url: 'https://tapas.io/', desc: 'Webcomics & novels' }
     ]
   },
   comics: {
     name: '🦸 Comics',
-    description: 'Western comics',
     sites: [
-      { id: 'marvel-unlimited', name: 'Marvel Unlimited', icon: '🔴', url: 'https://www.marvel.com/unlimited', description: 'Marvel comics subscription' },
-      { id: 'dc-universe', name: 'DC Universe', icon: '🔵', url: 'https://www.dcuniverseinfinite.com/', description: 'DC comics subscription' },
-      { id: 'comixology', name: 'Comixology', icon: '📚', url: 'https://www.comixology.com/', description: 'Digital comics store' },
-      { id: 'comic-book-plus', name: 'Comic Book Plus', icon: '💫', url: 'https://comicbookplus.com/', description: 'Free golden age comics' },
-      { id: 'digital-comic-museum', name: 'Digital Comic Museum', icon: '🏛️', url: 'https://digitalcomicmuseum.com/', description: 'Public domain comics' },
-      { id: 'getcomics', name: 'GetComics', icon: '📥', url: 'https://getcomics.org/', description: 'Comic downloads' }
+      { id: 'marvel', name: 'Marvel Unlimited', icon: '🔴', url: 'https://www.marvel.com/unlimited', desc: 'Marvel subscription' },
+      { id: 'dc', name: 'DC Universe', icon: '🔵', url: 'https://www.dcuniverseinfinite.com/', desc: 'DC subscription' },
+      { id: 'comixology', name: 'Comixology', icon: '📚', url: 'https://www.amazon.com/kindle-dbs/comics-store/', desc: 'Digital comics' },
+      { id: 'comicbookplus', name: 'Comic Book Plus', icon: '💫', url: 'https://comicbookplus.com/', desc: 'Free golden age' },
+      { id: 'digitalcomic', name: 'Digital Comic Museum', icon: '🏛️', url: 'https://digitalcomicmuseum.com/', desc: 'Public domain' }
     ]
   },
   webcomics: {
     name: '🌐 Webcomics',
-    description: 'Online comics',
     sites: [
-      { id: 'xkcd', name: 'xkcd', icon: '🔬', url: 'https://xkcd.com/', description: 'Science & tech humor' },
-      { id: 'smbc', name: 'SMBC', icon: '😄', url: 'https://www.smbc-comics.com/', description: 'Saturday Morning Breakfast Cereal' },
-      { id: 'oatmeal', name: 'The Oatmeal', icon: '🐱', url: 'https://theoatmeal.com/', description: 'Humor comics' },
-      { id: 'explosm', name: 'Cyanide & Happiness', icon: '😈', url: 'https://explosm.net/', description: 'Dark humor' },
-      { id: 'dilbert', name: 'Dilbert', icon: '👔', url: 'https://dilbert.com/', description: 'Office humor' },
-      { id: 'gocomics', name: 'GoComics', icon: '📰', url: 'https://www.gocomics.com/', description: 'Newspaper comics' },
-      { id: 'webtoons', name: 'Webtoons', icon: '📱', url: 'https://www.webtoons.com/', description: 'Vertical scroll comics' },
-      { id: 'comicfury', name: 'Comic Fury', icon: '🔥', url: 'https://comicfury.com/', description: 'Indie webcomics' }
+      { id: 'xkcd', name: 'xkcd', icon: '🔬', url: 'https://xkcd.com/', desc: 'Science & tech humor' },
+      { id: 'smbc', name: 'SMBC', icon: '😄', url: 'https://www.smbc-comics.com/', desc: 'Saturday Morning' },
+      { id: 'oatmeal', name: 'The Oatmeal', icon: '🐱', url: 'https://theoatmeal.com/', desc: 'Humor comics' },
+      { id: 'explosm', name: 'Cyanide & Happiness', icon: '😈', url: 'https://explosm.net/', desc: 'Dark humor' },
+      { id: 'gocomics', name: 'GoComics', icon: '📰', url: 'https://www.gocomics.com/', desc: 'Newspaper comics' },
+      { id: 'webtoons', name: 'Webtoons', icon: '📱', url: 'https://www.webtoons.com/', desc: 'Vertical scroll' }
     ]
   }
 };
 
-// Popular manga list
+// Popular manga with direct MangaDex links
 const POPULAR_MANGA = [
-  { id: 'one-piece', name: 'One Piece', icon: '🏴‍☠️', chapters: '1100+', status: 'Ongoing' },
-  { id: 'jjk', name: 'Jujutsu Kaisen', icon: '👁️', chapters: '250+', status: 'Ongoing' },
-  { id: 'chainsaw-man', name: 'Chainsaw Man', icon: '⛓️', chapters: '160+', status: 'Ongoing' },
-  { id: 'my-hero', name: 'My Hero Academia', icon: '💪', chapters: '420+', status: 'Completed' },
-  { id: 'demon-slayer', name: 'Demon Slayer', icon: '🗡️', chapters: '205', status: 'Completed' },
-  { id: 'spy-x-family', name: 'Spy x Family', icon: '🕵️', chapters: '100+', status: 'Ongoing' },
-  { id: 'aot', name: 'Attack on Titan', icon: '⚔️', chapters: '139', status: 'Completed' },
-  { id: 'hxh', name: 'Hunter x Hunter', icon: '🎯', chapters: '400+', status: 'Hiatus' },
-  { id: 'solo-leveling', name: 'Solo Leveling', icon: '⬆️', chapters: '179', status: 'Completed' },
-  { id: 'naruto', name: 'Naruto', icon: '🍥', chapters: '700', status: 'Completed' },
-  { id: 'bleach', name: 'Bleach', icon: '☠️', chapters: '686', status: 'Completed' },
-  { id: 'dragon-ball', name: 'Dragon Ball', icon: '🐉', chapters: '520', status: 'Completed' }
+  { id: 'one-piece', name: 'One Piece', icon: '🏴‍☠️', chapters: '1100+', status: 'Ongoing', searchQuery: 'one piece' },
+  { id: 'jjk', name: 'Jujutsu Kaisen', icon: '👁️', chapters: '250+', status: 'Ended', searchQuery: 'jujutsu kaisen' },
+  { id: 'chainsaw', name: 'Chainsaw Man', icon: '⛓️', chapters: '160+', status: 'Ongoing', searchQuery: 'chainsaw man' },
+  { id: 'mha', name: 'My Hero Academia', icon: '💪', chapters: '420+', status: 'Ended', searchQuery: 'my hero academia' },
+  { id: 'demon-slayer', name: 'Demon Slayer', icon: '🗡️', chapters: '205', status: 'Ended', searchQuery: 'demon slayer' },
+  { id: 'spy', name: 'Spy x Family', icon: '🕵️', chapters: '100+', status: 'Ongoing', searchQuery: 'spy x family' },
+  { id: 'aot', name: 'Attack on Titan', icon: '⚔️', chapters: '139', status: 'Ended', searchQuery: 'attack on titan' },
+  { id: 'hxh', name: 'Hunter x Hunter', icon: '🎯', chapters: '400+', status: 'Hiatus', searchQuery: 'hunter x hunter' },
+  { id: 'solo', name: 'Solo Leveling', icon: '⬆️', chapters: '179', status: 'Ended', searchQuery: 'solo leveling' },
+  { id: 'naruto', name: 'Naruto', icon: '🍥', chapters: '700', status: 'Ended', searchQuery: 'naruto' },
+  { id: 'bleach', name: 'Bleach', icon: '☠️', chapters: '686', status: 'Ended', searchQuery: 'bleach' },
+  { id: 'db', name: 'Dragon Ball', icon: '🐉', chapters: '520', status: 'Ended', searchQuery: 'dragon ball' }
 ];
 
-// Reading list categories
-const READING_CATEGORIES = [
-  { id: 'classic', name: 'Classic Literature', icon: '📜' },
-  { id: 'scifi', name: 'Science Fiction', icon: '🚀' },
-  { id: 'fantasy', name: 'Fantasy', icon: '🧙' },
-  { id: 'mystery', name: 'Mystery & Thriller', icon: '🔍' },
-  { id: 'romance', name: 'Romance', icon: '💕' },
-  { id: 'horror', name: 'Horror', icon: '👻' },
-  { id: 'nonfiction', name: 'Non-Fiction', icon: '📊' },
-  { id: 'philosophy', name: 'Philosophy', icon: '🤔' }
+// Book genres with correct Gutenberg URLs
+const BOOK_GENRES = [
+  { id: 'classic', name: 'Classic Literature', icon: '📜', url: 'https://www.gutenberg.org/ebooks/bookshelf/153' },
+  { id: 'scifi', name: 'Science Fiction', icon: '🚀', url: 'https://www.gutenberg.org/ebooks/bookshelf/68' },
+  { id: 'fantasy', name: 'Fantasy', icon: '🧙', url: 'https://www.gutenberg.org/ebooks/bookshelf/46' },
+  { id: 'mystery', name: 'Mystery', icon: '🔍', url: 'https://www.gutenberg.org/ebooks/bookshelf/42' },
+  { id: 'romance', name: 'Romance', icon: '💕', url: 'https://www.gutenberg.org/ebooks/bookshelf/56' },
+  { id: 'horror', name: 'Horror', icon: '👻', url: 'https://www.gutenberg.org/ebooks/bookshelf/32' },
+  { id: 'adventure', name: 'Adventure', icon: '🗺️', url: 'https://www.gutenberg.org/ebooks/bookshelf/26' },
+  { id: 'philosophy', name: 'Philosophy', icon: '🤔', url: 'https://www.gutenberg.org/ebooks/bookshelf/51' }
+];
+
+// Classic books quick access
+const CLASSIC_BOOKS = [
+  { name: 'Pride and Prejudice', author: 'Jane Austen', url: 'https://www.gutenberg.org/ebooks/1342' },
+  { name: '1984', author: 'George Orwell', url: 'https://www.gutenberg.org/ebooks/67474' },
+  { name: 'Frankenstein', author: 'Mary Shelley', url: 'https://www.gutenberg.org/ebooks/84' },
+  { name: 'Dracula', author: 'Bram Stoker', url: 'https://www.gutenberg.org/ebooks/345' },
+  { name: 'The Great Gatsby', author: 'F. Scott Fitzgerald', url: 'https://www.gutenberg.org/ebooks/64317' },
+  { name: 'Moby Dick', author: 'Herman Melville', url: 'https://www.gutenberg.org/ebooks/2701' },
+  { name: 'War and Peace', author: 'Leo Tolstoy', url: 'https://www.gutenberg.org/ebooks/2600' },
+  { name: 'The Odyssey', author: 'Homer', url: 'https://www.gutenberg.org/ebooks/1727' }
 ];
 
 function ReadingSection() {
   const { actions } = useApp();
   const [activeTab, setActiveTab] = useState('ebooks');
-  const [activeCategory, setActiveCategory] = useState('free');
+  const [ebookCategory, setEbookCategory] = useState('free');
   const [comicCategory, setComicCategory] = useState('manga');
-  const [favorites, setFavorites] = useState([]);
   const [readingList, setReadingList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Load data from localStorage
+  // Load reading list
   useEffect(() => {
     try {
-      const savedFavorites = localStorage.getItem('movienights_reading_favorites');
       const savedList = localStorage.getItem('movienights_reading_list');
-      if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
       if (savedList) setReadingList(JSON.parse(savedList));
     } catch (e) {
-      console.error('Error loading reading data:', e);
+      console.error('Error loading reading list:', e);
     }
   }, []);
 
-  // Toggle favorite
-  const toggleFavorite = (item) => {
-    const key = `${item.type || 'site'}-${item.id}`;
-    const newFavorites = favorites.includes(key)
-      ? favorites.filter(f => f !== key)
-      : [...favorites, key];
-    
-    setFavorites(newFavorites);
-    localStorage.setItem('movienights_reading_favorites', JSON.stringify(newFavorites));
+  // Open external site
+  const openSite = (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Search for manga on MangaDex
+  const searchManga = (query) => {
+    openSite(`https://mangadex.org/search?q=${encodeURIComponent(query)}`);
+  };
+
+  // Search for books
+  const searchBooks = () => {
+    if (!searchQuery.trim()) return;
+    openSite(`https://www.gutenberg.org/ebooks/search/?query=${encodeURIComponent(searchQuery)}`);
   };
 
   // Add to reading list
@@ -163,52 +168,55 @@ function ReadingSection() {
   };
 
   // Remove from reading list
-  const removeFromReadingList = (mangaId) => {
-    const newList = readingList.filter(m => m.id !== mangaId);
+  const removeFromReadingList = (id) => {
+    const newList = readingList.filter(m => m.id !== id);
     setReadingList(newList);
     localStorage.setItem('movienights_reading_list', JSON.stringify(newList));
-  };
-
-  // Open site
-  const openSite = (url) => {
-    window.open(url, '_blank');
-  };
-
-  // Search manga
-  const searchManga = (name) => {
-    window.open(`https://mangadex.org/search?q=${encodeURIComponent(name)}`, '_blank');
+    actions.addNotification('Removed from reading list', 'info');
   };
 
   return (
     <div className="reading-section">
-      <h2 className="section-title">📚 eBooks & Comics</h2>
+      <h2 className="section-title">📚 Reading Hub</h2>
 
       {/* Main Tabs */}
-      <div className="main-tabs">
-        <button
-          className={`main-tab ${activeTab === 'ebooks' ? 'active' : ''}`}
+      <div className="reading-tabs">
+        <button 
+          className={`reading-tab ${activeTab === 'ebooks' ? 'active' : ''}`}
           onClick={() => setActiveTab('ebooks')}
         >
           📖 eBooks
         </button>
-        <button
-          className={`main-tab ${activeTab === 'comics' ? 'active' : ''}`}
+        <button 
+          className={`reading-tab ${activeTab === 'comics' ? 'active' : ''}`}
           onClick={() => setActiveTab('comics')}
         >
-          🦸 Comics & Manga
+          🎨 Comics & Manga
         </button>
       </div>
 
       {/* eBooks Section */}
       {activeTab === 'ebooks' && (
         <div className="ebooks-content">
+          {/* Search */}
+          <div className="book-search">
+            <input
+              type="text"
+              placeholder="Search for books on Project Gutenberg..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchBooks()}
+            />
+            <button onClick={searchBooks}>🔍</button>
+          </div>
+
           {/* Category Tabs */}
           <div className="category-tabs">
             {Object.entries(EBOOK_SOURCES).map(([key, category]) => (
               <button
                 key={key}
-                className={`category-tab ${activeCategory === key ? 'active' : ''}`}
-                onClick={() => setActiveCategory(key)}
+                className={`category-tab ${ebookCategory === key ? 'active' : ''}`}
+                onClick={() => setEbookCategory(key)}
               >
                 {category.name}
               </button>
@@ -216,49 +224,64 @@ function ReadingSection() {
           </div>
 
           {/* Sites Grid */}
-          <div className="sites-section">
-            <p className="section-description">{EBOOK_SOURCES[activeCategory].description}</p>
-            <div className="sites-grid">
-              {EBOOK_SOURCES[activeCategory].sites.map((site) => (
-                <div
-                  key={site.id}
-                  className="site-card"
-                  onClick={() => openSite(site.url)}
-                >
-                  <span className="site-icon">{site.icon}</span>
-                  <div className="site-info">
-                    <h4>{site.name}</h4>
-                    <p>{site.description}</p>
-                  </div>
-                  <span className="external-arrow">↗</span>
+          <div className="sites-grid">
+            {EBOOK_SOURCES[ebookCategory].sites.map((site) => (
+              <div
+                key={site.id}
+                className="site-card"
+                onClick={() => openSite(site.url)}
+              >
+                <span className="site-icon">{site.icon}</span>
+                <div className="site-info">
+                  <h4>{site.name}</h4>
+                  <p>{site.desc}</p>
                 </div>
+                <span className="external-arrow">↗</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Book Genres */}
+          <div className="genres-section">
+            <h3>📚 Browse by Genre</h3>
+            <div className="genres-grid">
+              {BOOK_GENRES.map((genre) => (
+                <button
+                  key={genre.id}
+                  className="genre-btn"
+                  onClick={() => openSite(genre.url)}
+                >
+                  <span className="genre-icon">{genre.icon}</span>
+                  <span className="genre-name">{genre.name}</span>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Genre Categories */}
-          <div className="genre-section">
-            <h3>📚 Browse by Genre</h3>
-            <div className="genre-grid">
-              {READING_CATEGORIES.map((category) => (
-                <button
-                  key={category.id}
-                  className="genre-btn"
-                  onClick={() => openSite(`https://www.gutenberg.org/ebooks/bookshelf/${category.id}`)}
+          {/* Classic Books */}
+          <div className="classics-section">
+            <h3>📖 Popular Classics</h3>
+            <div className="classics-grid">
+              {CLASSIC_BOOKS.map((book, index) => (
+                <div
+                  key={index}
+                  className="classic-card"
+                  onClick={() => openSite(book.url)}
                 >
-                  <span className="genre-icon">{category.icon}</span>
-                  <span className="genre-name">{category.name}</span>
-                </button>
+                  <h4>{book.name}</h4>
+                  <p>{book.author}</p>
+                  <span className="read-badge">Read Free →</span>
+                </div>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Comics Section */}
+      {/* Comics/Manga Section */}
       {activeTab === 'comics' && (
         <div className="comics-content">
-          {/* Comic Category Tabs */}
+          {/* Category Tabs */}
           <div className="category-tabs">
             {Object.entries(COMIC_SOURCES).map(([key, category]) => (
               <button
@@ -272,30 +295,27 @@ function ReadingSection() {
           </div>
 
           {/* Sites Grid */}
-          <div className="sites-section">
-            <p className="section-description">{COMIC_SOURCES[comicCategory].description}</p>
-            <div className="sites-grid">
-              {COMIC_SOURCES[comicCategory].sites.map((site) => (
-                <div
-                  key={site.id}
-                  className={`site-card ${site.featured ? 'featured' : ''}`}
-                  onClick={() => openSite(site.url)}
-                >
-                  {site.featured && <span className="featured-badge">⭐ Recommended</span>}
-                  <span className="site-icon">{site.icon}</span>
-                  <div className="site-info">
-                    <h4>{site.name}</h4>
-                    <p>{site.description}</p>
-                  </div>
-                  <span className="external-arrow">↗</span>
+          <div className="sites-grid">
+            {COMIC_SOURCES[comicCategory].sites.map((site) => (
+              <div
+                key={site.id}
+                className={`site-card ${site.featured ? 'featured' : ''}`}
+                onClick={() => openSite(site.url)}
+              >
+                {site.featured && <span className="featured-badge">⭐ Recommended</span>}
+                <span className="site-icon">{site.icon}</span>
+                <div className="site-info">
+                  <h4>{site.name}</h4>
+                  <p>{site.desc}</p>
                 </div>
-              ))}
-            </div>
+                <span className="external-arrow">↗</span>
+              </div>
+            ))}
           </div>
 
           {/* Popular Manga */}
           {comicCategory === 'manga' && (
-            <div className="popular-manga">
+            <div className="manga-section">
               <h3>🔥 Popular Manga</h3>
               <div className="manga-grid">
                 {POPULAR_MANGA.map((manga) => (
@@ -304,7 +324,7 @@ function ReadingSection() {
                     <div className="manga-info">
                       <h4>{manga.name}</h4>
                       <div className="manga-meta">
-                        <span className="chapters">{manga.chapters} chapters</span>
+                        <span className="chapters">{manga.chapters} ch</span>
                         <span className={`status ${manga.status.toLowerCase()}`}>
                           {manga.status}
                         </span>
@@ -312,18 +332,17 @@ function ReadingSection() {
                     </div>
                     <div className="manga-actions">
                       <button
-                        className="manga-btn read-btn"
-                        onClick={() => searchManga(manga.name)}
+                        className="manga-btn read"
+                        onClick={() => searchManga(manga.searchQuery)}
                         title="Read on MangaDex"
                       >
-                        📖
+                        📖 Read
                       </button>
                       <button
-                        className={`manga-btn list-btn ${readingList.find(m => m.id === manga.id) ? 'in-list' : ''}`}
+                        className={`manga-btn list ${readingList.find(m => m.id === manga.id) ? 'in-list' : ''}`}
                         onClick={() => readingList.find(m => m.id === manga.id) 
                           ? removeFromReadingList(manga.id) 
                           : addToReadingList(manga)}
-                        title={readingList.find(m => m.id === manga.id) ? 'Remove from list' : 'Add to reading list'}
                       >
                         {readingList.find(m => m.id === manga.id) ? '✓' : '+'}
                       </button>
@@ -344,7 +363,13 @@ function ReadingSection() {
                     <span className="item-icon">{manga.icon}</span>
                     <span className="item-name">{manga.name}</span>
                     <button
-                      className="remove-btn"
+                      className="item-read"
+                      onClick={() => searchManga(manga.searchQuery || manga.name)}
+                    >
+                      📖
+                    </button>
+                    <button
+                      className="item-remove"
                       onClick={() => removeFromReadingList(manga.id)}
                     >
                       ✕
@@ -358,15 +383,15 @@ function ReadingSection() {
       )}
 
       {/* Quick Links */}
-      <div className="quick-links">
+      <div className="quick-links-section">
         <h3>🔗 More Resources</h3>
-        <div className="quick-links-grid">
+        <div className="quick-links">
           <a href="https://www.goodreads.com/" target="_blank" rel="noopener noreferrer">Goodreads</a>
-          <a href="https://www.bookdepository.com/" target="_blank" rel="noopener noreferrer">Book Depository</a>
-          <a href="https://myanimelist.net/manga.php" target="_blank" rel="noopener noreferrer">MyAnimeList Manga</a>
-          <a href="https://anilist.co/search/manga" target="_blank" rel="noopener noreferrer">AniList Manga</a>
+          <a href="https://myanimelist.net/manga.php" target="_blank" rel="noopener noreferrer">MAL Manga</a>
+          <a href="https://anilist.co/search/manga" target="_blank" rel="noopener noreferrer">AniList</a>
           <a href="https://www.reddit.com/r/manga/" target="_blank" rel="noopener noreferrer">r/manga</a>
           <a href="https://www.reddit.com/r/books/" target="_blank" rel="noopener noreferrer">r/books</a>
+          <a href="https://www.reddit.com/r/FreeEBOOKS/" target="_blank" rel="noopener noreferrer">r/FreeEBOOKS</a>
         </div>
       </div>
     </div>

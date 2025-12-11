@@ -15,6 +15,7 @@ const tabs = [
   { id: 'games', label: 'Games', icon: '🎮' },
   { id: 'music', label: 'Music', icon: '🎵' },
   { id: 'reading', label: 'Reading', icon: '📚' },
+  { id: 'focus', label: 'Focus', icon: '🧘' },
   { id: 'collection', label: 'Collection', icon: '💼' },
   { id: 'watchlists', label: 'Watchlists', icon: '📋' },
   { id: 'lists', label: 'Lists', icon: '📝' },

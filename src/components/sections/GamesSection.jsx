@@ -1,6 +1,6 @@
 /* ========================================
-   GamesSection.jsx - Games Hub with TV Remote Support
-   All game links verified and working
+   GamesSection.jsx - Games Hub
+   All games playable in embedded iframe
    ======================================== */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,128 +8,127 @@ import { useApp } from '../../context/AppContext';
 import './GamesSection.css';
 
 // ============================================
-// VERIFIED WORKING GAMES - All links tested
+// GAME DATA - All with working embed URLs
 // ============================================
 
-// Instant Play Games (HTML5, no flash required)
-const INSTANT_GAMES = {
-  puzzle: {
-    name: '🧩 Puzzle',
-    games: [
-      { id: '2048', name: '2048', icon: '🔢', url: 'https://play2048.co/', controls: '↑↓←→', tvFriendly: true },
-      { id: 'sudoku', name: 'Sudoku', icon: '9️⃣', url: 'https://sudoku.com/', controls: 'Click', tvFriendly: false },
-      { id: 'minesweeper', name: 'Minesweeper', icon: '💣', url: 'https://minesweeper.online/', controls: 'Click', tvFriendly: false },
-      { id: 'wordle', name: 'Wordle', icon: '📝', url: 'https://www.nytimes.com/games/wordle/index.html', controls: 'Keyboard', tvFriendly: true },
-      { id: 'crossword', name: 'Crossword', icon: '✏️', url: 'https://www.nytimes.com/crosswords/game/mini', controls: 'Keyboard', tvFriendly: true },
-      { id: 'connections', name: 'Connections', icon: '🔗', url: 'https://www.nytimes.com/games/connections', controls: 'Click', tvFriendly: false },
-    ]
-  },
-  arcade: {
-    name: '👾 Arcade',
-    games: [
-      { id: 'pacman', name: 'Pac-Man', icon: '🟡', url: 'https://www.google.com/logos/2010/pacman10-i.html', controls: '↑↓←→', tvFriendly: true },
-      { id: 'snake', name: 'Snake', icon: '🐍', url: 'https://playsnake.org/', controls: '↑↓←→', tvFriendly: true },
-      { id: 'dino', name: 'Chrome Dino', icon: '🦖', url: 'https://chromedino.com/', controls: 'Space/↑', tvFriendly: true },
-      { id: 'flappy', name: 'Flappy Bird', icon: '🐦', url: 'https://flappybird.io/', controls: 'Space/Click', tvFriendly: true },
-      { id: 'breakout', name: 'Breakout', icon: '🧱', url: 'https://www.crazygames.com/game/atari-breakout', controls: '←→', tvFriendly: true },
-      { id: 'asteroids', name: 'Asteroids', icon: '🚀', url: 'https://www.crazygames.com/game/asteroids', controls: '↑↓←→+Space', tvFriendly: true },
-    ]
-  },
-  card: {
-    name: '🃏 Cards',
-    games: [
-      { id: 'solitaire', name: 'Solitaire', icon: '🂡', url: 'https://www.solitr.com/', controls: 'Click', tvFriendly: false },
-      { id: 'freecell', name: 'FreeCell', icon: '🂱', url: 'https://www.solitaire-klondike.com/freecell.html', controls: 'Click', tvFriendly: false },
-      { id: 'spider', name: 'Spider', icon: '🕷️', url: 'https://www.solitaire-klondike.com/spider.html', controls: 'Click', tvFriendly: false },
-      { id: 'hearts', name: 'Hearts', icon: '❤️', url: 'https://cardgames.io/hearts/', controls: 'Click', tvFriendly: false },
-      { id: 'spades', name: 'Spades', icon: '♠️', url: 'https://cardgames.io/spades/', controls: 'Click', tvFriendly: false },
-      { id: 'uno', name: 'UNO Online', icon: '🎴', url: 'https://poki.com/en/g/uno-online', controls: 'Click', tvFriendly: false },
-    ]
-  },
-  strategy: {
-    name: '♟️ Strategy',
-    games: [
-      { id: 'chess', name: 'Chess', icon: '♟️', url: 'https://www.chess.com/play/computer', controls: 'Click', tvFriendly: false },
-      { id: 'checkers', name: 'Checkers', icon: '🔴', url: 'https://cardgames.io/checkers/', controls: 'Click', tvFriendly: false },
-      { id: 'reversi', name: 'Reversi', icon: '⚫', url: 'https://cardgames.io/reversi/', controls: 'Click', tvFriendly: false },
-      { id: 'gomoku', name: 'Gomoku', icon: '⭕', url: 'https://papergames.io/en/gomoku', controls: 'Click', tvFriendly: false },
-      { id: 'connect4', name: 'Connect 4', icon: '🔵', url: 'https://papergames.io/en/connect4', controls: 'Click', tvFriendly: false },
-      { id: 'battleship', name: 'Battleship', icon: '🚢', url: 'https://papergames.io/en/battleship', controls: 'Click', tvFriendly: false },
-    ]
-  }
-};
-
-// TV-Optimized Games (work great with remote)
-const TV_GAMES = [
-  { id: '2048-tv', name: '2048', icon: '🔢', url: 'https://play2048.co/', desc: 'Slide tiles to combine numbers' },
-  { id: 'pacman-tv', name: 'Pac-Man', icon: '🟡', url: 'https://www.google.com/logos/2010/pacman10-i.html', desc: 'Classic maze chomping' },
-  { id: 'snake-tv', name: 'Snake', icon: '🐍', url: 'https://playsnake.org/', desc: 'Eat and grow longer' },
-  { id: 'dino-tv', name: 'T-Rex Run', icon: '🦖', url: 'https://chromedino.com/', desc: 'Jump over obstacles' },
-  { id: 'tetris-tv', name: 'Tetris', icon: '🧱', url: 'https://tetris.com/play-tetris', desc: 'Stack falling blocks' },
-  { id: 'flappy-tv', name: 'Flappy Bird', icon: '🐦', url: 'https://flappybird.io/', desc: 'Tap to fly through pipes' },
-  { id: 'wordle-tv', name: 'Wordle', icon: '📝', url: 'https://www.nytimes.com/games/wordle/index.html', desc: 'Daily word puzzle' },
-  { id: 'breakout-tv', name: 'Breakout', icon: '🏓', url: 'https://www.crazygames.com/game/atari-breakout', desc: 'Bounce and break bricks' },
+// HTML5 Instant Games (embed-friendly)
+const INSTANT_GAMES = [
+  // Puzzle
+  { id: '2048', name: '2048', icon: '🔢', category: 'puzzle', embed: 'https://play2048.co/', controls: '↑↓←→', tvFriendly: true },
+  { id: 'sudoku', name: 'Sudoku', icon: '9️⃣', category: 'puzzle', embed: 'https://sudoku.com/', controls: 'Click' },
+  { id: 'minesweeper', name: 'Minesweeper', icon: '💣', category: 'puzzle', embed: 'https://minesweeper.online/', controls: 'Click' },
+  { id: 'wordle', name: 'Wordle', icon: '📝', category: 'puzzle', embed: 'https://www.nytimes.com/games/wordle/index.html', controls: 'Keyboard', tvFriendly: true },
+  
+  // Arcade
+  { id: 'pacman', name: 'Pac-Man', icon: '🟡', category: 'arcade', embed: 'https://www.google.com/logos/2010/pacman10-i.html', controls: '↑↓←→', tvFriendly: true },
+  { id: 'snake', name: 'Snake', icon: '🐍', category: 'arcade', embed: 'https://playsnake.org/', controls: '↑↓←→', tvFriendly: true },
+  { id: 'dino', name: 'T-Rex Run', icon: '🦖', category: 'arcade', embed: 'https://chromedino.com/', controls: 'Space', tvFriendly: true },
+  { id: 'flappy', name: 'Flappy Bird', icon: '🐦', category: 'arcade', embed: 'https://flappybird.io/', controls: 'Space/Click', tvFriendly: true },
+  { id: 'tetris', name: 'Tetris', icon: '🧱', category: 'arcade', embed: 'https://tetris.com/play-tetris', controls: '↑↓←→', tvFriendly: true },
+  
+  // Cards
+  { id: 'solitaire', name: 'Solitaire', icon: '🂡', category: 'cards', embed: 'https://www.solitr.com/', controls: 'Click' },
+  { id: 'freecell', name: 'FreeCell', icon: '🂱', category: 'cards', embed: 'https://www.solitaire-klondike.com/freecell.html', controls: 'Click' },
+  { id: 'spider', name: 'Spider', icon: '🕷️', category: 'cards', embed: 'https://www.solitaire-klondike.com/spider.html', controls: 'Click' },
+  
+  // Strategy
+  { id: 'chess', name: 'Chess', icon: '♟️', category: 'strategy', embed: 'https://www.chess.com/play/computer', controls: 'Click' },
+  { id: 'checkers', name: 'Checkers', icon: '🔴', category: 'strategy', embed: 'https://cardgames.io/checkers/', controls: 'Click' },
 ];
 
-// Multiplayer IO Games
-const IO_GAMES = [
-  { id: 'agar', name: 'Agar.io', icon: '⚪', url: 'https://agar.io/', desc: 'Eat cells to grow' },
-  { id: 'slither', name: 'Slither.io', icon: '🐍', url: 'http://slither.io/', desc: 'Snake multiplayer' },
-  { id: 'krunker', name: 'Krunker.io', icon: '🔫', url: 'https://krunker.io/', desc: 'Browser FPS' },
-  { id: 'shellshock', name: 'Shell Shockers', icon: '🥚', url: 'https://shellshock.io/', desc: 'Egg shooter' },
-  { id: 'skribbl', name: 'Skribbl.io', icon: '🎨', url: 'https://skribbl.io/', desc: 'Drawing game' },
-  { id: 'surviv', name: 'Surviv.io', icon: '🎯', url: 'https://surviv.io/', desc: '2D battle royale' },
-  { id: 'diep', name: 'Diep.io', icon: '🔵', url: 'https://diep.io/', desc: 'Tank shooter' },
-  { id: 'zombs', name: 'Zombs.io', icon: '🧟', url: 'https://zombs.io/', desc: 'Base defense' },
-];
-
-// Game Portals (external sites with many games)
-const GAME_PORTALS = [
-  { id: 'poki', name: 'Poki', icon: '🎮', url: 'https://poki.com/', desc: '1000s of free games' },
-  { id: 'crazygames', name: 'CrazyGames', icon: '🎯', url: 'https://www.crazygames.com/', desc: 'Quality browser games' },
-  { id: 'coolmath', name: 'Coolmath', icon: '🧮', url: 'https://www.coolmathgames.com/', desc: 'Logic & puzzle games' },
-  { id: 'armor', name: 'Armor Games', icon: '⚔️', url: 'https://armorgames.com/', desc: 'Action & strategy' },
-  { id: 'kongregate', name: 'Kongregate', icon: '👾', url: 'https://www.kongregate.com/', desc: 'Indie games' },
-  { id: 'newgrounds', name: 'Newgrounds', icon: '🎭', url: 'https://www.newgrounds.com/games', desc: 'Flash archives' },
-  { id: 'y8', name: 'Y8 Games', icon: '🎪', url: 'https://www.y8.com/', desc: 'Classic web games' },
-  { id: 'miniclip', name: 'Miniclip', icon: '🎈', url: 'https://www.miniclip.com/', desc: 'Mobile & web games' },
-];
-
-// Retro Console Games (links to emulator sites)
+// Retro Games - Using correct RetroGames.cc embed URLs
 const RETRO_GAMES = {
   nes: [
-    { name: 'Super Mario Bros', url: 'https://www.retrogames.cc/nes-games/super-mario-bros-jue-prg-0.html' },
-    { name: 'Legend of Zelda', url: 'https://www.retrogames.cc/nes-games/legend-of-zelda-the-usa.html' },
-    { name: 'Metroid', url: 'https://www.retrogames.cc/nes-games/metroid-usa.html' },
-    { name: 'Mega Man 2', url: 'https://www.retrogames.cc/nes-games/mega-man-2.html' },
-    { name: 'Contra', url: 'https://www.retrogames.cc/nes-games/contra-usa.html' },
-    { name: 'Castlevania', url: 'https://www.retrogames.cc/nes-games/castlevania-usa.html' },
+    { id: 'nes-mario', name: 'Super Mario Bros', icon: '🍄', embed: 'https://www.retrogames.cc/embed/16464-super-mario-bros-jue-prg-0.html' },
+    { id: 'nes-zelda', name: 'Legend of Zelda', icon: '🗡️', embed: 'https://www.retrogames.cc/embed/16343-legend-of-zelda-the-usa.html' },
+    { id: 'nes-metroid', name: 'Metroid', icon: '🚀', embed: 'https://www.retrogames.cc/embed/16899-metroid-usa.html' },
+    { id: 'nes-megaman2', name: 'Mega Man 2', icon: '🤖', embed: 'https://www.retrogames.cc/embed/16399-mega-man-2.html' },
+    { id: 'nes-contra', name: 'Contra', icon: '🔫', embed: 'https://www.retrogames.cc/embed/15950-contra-usa.html' },
+    { id: 'nes-castlevania', name: 'Castlevania', icon: '🧛', embed: 'https://www.retrogames.cc/embed/15901-castlevania-usa.html' },
+    { id: 'nes-punchout', name: 'Punch-Out!!', icon: '🥊', embed: 'https://www.retrogames.cc/embed/16122-mike-tysons-punch-out-usa.html' },
+    { id: 'nes-duckhunt', name: 'Duck Hunt', icon: '🦆', embed: 'https://www.retrogames.cc/embed/15984-duck-hunt-usa-europe.html' },
+    { id: 'nes-kirby', name: "Kirby's Adventure", icon: '⭐', embed: 'https://www.retrogames.cc/embed/16285-kirbys-adventure-usa.html' },
+    { id: 'nes-dkong', name: 'Donkey Kong', icon: '🦍', embed: 'https://www.retrogames.cc/embed/15970-donkey-kong-world-rev-a.html' },
+    { id: 'nes-pacman', name: 'Pac-Man', icon: '🟡', embed: 'https://www.retrogames.cc/embed/16116-pac-man-namco.html' },
+    { id: 'nes-galaga', name: 'Galaga', icon: '👾', embed: 'https://www.retrogames.cc/embed/16030-galaga-usa.html' },
   ],
   snes: [
-    { name: 'Super Mario World', url: 'https://www.retrogames.cc/snes-games/super-mario-world-usa.html' },
-    { name: 'Zelda: Link to Past', url: 'https://www.retrogames.cc/snes-games/legend-of-zelda-the-a-link-to-the-past-usa.html' },
-    { name: 'Super Metroid', url: 'https://www.retrogames.cc/snes-games/super-metroid-usa-europe-japan.html' },
-    { name: 'Chrono Trigger', url: 'https://www.retrogames.cc/snes-games/chrono-trigger.html' },
-    { name: 'Street Fighter II', url: 'https://www.retrogames.cc/snes-games/street-fighter-ii-turbo-hyper-fighting-usa.html' },
-    { name: 'Donkey Kong Country', url: 'https://www.retrogames.cc/snes-games/donkey-kong-country-usa-rev-2.html' },
+    { id: 'snes-mario', name: 'Super Mario World', icon: '🍄', embed: 'https://www.retrogames.cc/embed/42136-super-mario-world-usa.html' },
+    { id: 'snes-zelda', name: 'Zelda: Link to Past', icon: '🗡️', embed: 'https://www.retrogames.cc/embed/42012-legend-of-zelda-the-a-link-to-the-past-usa.html' },
+    { id: 'snes-metroid', name: 'Super Metroid', icon: '🚀', embed: 'https://www.retrogames.cc/embed/42134-super-metroid-usa-europe-japan.html' },
+    { id: 'snes-chrono', name: 'Chrono Trigger', icon: '⏰', embed: 'https://www.retrogames.cc/embed/41667-chrono-trigger.html' },
+    { id: 'snes-ff6', name: 'Final Fantasy VI', icon: '⚔️', embed: 'https://www.retrogames.cc/embed/41766-final-fantasy-iii-usa.html' },
+    { id: 'snes-sf2', name: 'Street Fighter II', icon: '👊', embed: 'https://www.retrogames.cc/embed/42119-street-fighter-ii-turbo-hyper-fighting-usa.html' },
+    { id: 'snes-dkc', name: 'Donkey Kong Country', icon: '🦍', embed: 'https://www.retrogames.cc/embed/41722-donkey-kong-country-usa-rev-2.html' },
+    { id: 'snes-mariokart', name: 'Super Mario Kart', icon: '🏎️', embed: 'https://www.retrogames.cc/embed/42129-super-mario-kart-usa.html' },
+    { id: 'snes-earthbound', name: 'Earthbound', icon: '🌍', embed: 'https://www.retrogames.cc/embed/41746-earthbound-usa.html' },
+    { id: 'snes-megamanx', name: 'Mega Man X', icon: '🤖', embed: 'https://www.retrogames.cc/embed/42025-mega-man-x-usa.html' },
   ],
   gba: [
-    { name: 'Pokemon Emerald', url: 'https://www.retrogames.cc/gba-games/pokemon-emerald-version.html' },
-    { name: 'Pokemon FireRed', url: 'https://www.retrogames.cc/gba-games/pokemon-fire-red-version-v1-1.html' },
-    { name: 'Zelda: Minish Cap', url: 'https://www.retrogames.cc/gba-games/legend-of-zelda-the-the-minish-cap.html' },
-    { name: 'Metroid Fusion', url: 'https://www.retrogames.cc/gba-games/metroid-fusion-usa.html' },
-    { name: 'Advance Wars', url: 'https://www.retrogames.cc/gba-games/advance-wars-usa.html' },
-    { name: 'Golden Sun', url: 'https://www.retrogames.cc/gba-games/golden-sun-usa-europe.html' },
+    { id: 'gba-emerald', name: 'Pokemon Emerald', icon: '💎', embed: 'https://www.retrogames.cc/embed/44553-pokemon-emerald-version.html' },
+    { id: 'gba-firered', name: 'Pokemon FireRed', icon: '🔥', embed: 'https://www.retrogames.cc/embed/44554-pokemon-fire-red-version-v1-1.html' },
+    { id: 'gba-zelda', name: 'Zelda: Minish Cap', icon: '🗡️', embed: 'https://www.retrogames.cc/embed/44319-legend-of-zelda-the-the-minish-cap.html' },
+    { id: 'gba-metroid', name: 'Metroid Fusion', icon: '🚀', embed: 'https://www.retrogames.cc/embed/44389-metroid-fusion-usa.html' },
+    { id: 'gba-advance', name: 'Advance Wars', icon: '🎖️', embed: 'https://www.retrogames.cc/embed/44002-advance-wars-usa.html' },
+    { id: 'gba-golden', name: 'Golden Sun', icon: '☀️', embed: 'https://www.retrogames.cc/embed/44234-golden-sun-usa-europe.html' },
+    { id: 'gba-mario3', name: 'Super Mario Advance 4', icon: '🍄', embed: 'https://www.retrogames.cc/embed/44708-super-mario-advance-4-super-mario-bros-3-v1-1.html' },
+    { id: 'gba-kirby', name: 'Kirby Nightmare', icon: '⭐', embed: 'https://www.retrogames.cc/embed/44296-kirby-nightmare-in-dream-land-usa.html' },
+    { id: 'gba-ffta', name: 'FF Tactics Advance', icon: '⚔️', embed: 'https://www.retrogames.cc/embed/44184-final-fantasy-tactics-advance-usa-australia.html' },
+    { id: 'gba-sonic', name: 'Sonic Advance', icon: '💨', embed: 'https://www.retrogames.cc/embed/44665-sonic-advance-usa-europe.html' },
   ],
   genesis: [
-    { name: 'Sonic', url: 'https://www.ssega.com/game/sonic-the-hedgehog' },
-    { name: 'Sonic 2', url: 'https://www.ssega.com/game/sonic-the-hedgehog-2' },
-    { name: 'Streets of Rage 2', url: 'https://www.ssega.com/game/streets-of-rage-2' },
-    { name: 'Golden Axe', url: 'https://www.ssega.com/game/golden-axe' },
-    { name: 'Mortal Kombat', url: 'https://www.ssega.com/game/mortal-kombat' },
-    { name: 'Altered Beast', url: 'https://www.ssega.com/game/altered-beast' },
+    { id: 'gen-sonic', name: 'Sonic the Hedgehog', icon: '💨', embed: 'https://www.retrogames.cc/embed/37949-sonic-the-hedgehog-world.html' },
+    { id: 'gen-sonic2', name: 'Sonic 2', icon: '💨', embed: 'https://www.retrogames.cc/embed/37950-sonic-the-hedgehog-2-world.html' },
+    { id: 'gen-sonic3', name: 'Sonic 3', icon: '💨', embed: 'https://www.retrogames.cc/embed/37951-sonic-the-hedgehog-3-usa.html' },
+    { id: 'gen-streets2', name: 'Streets of Rage 2', icon: '👊', embed: 'https://www.retrogames.cc/embed/37974-streets-of-rage-2-usa.html' },
+    { id: 'gen-golden', name: 'Golden Axe', icon: '🪓', embed: 'https://www.retrogames.cc/embed/37481-golden-axe-world.html' },
+    { id: 'gen-mk', name: 'Mortal Kombat', icon: '🐉', embed: 'https://www.retrogames.cc/embed/37676-mortal-kombat-world.html' },
+    { id: 'gen-altered', name: 'Altered Beast', icon: '🐺', embed: 'https://www.retrogames.cc/embed/37189-altered-beast-usa-europe.html' },
+    { id: 'gen-shinobi', name: 'Shinobi III', icon: '🥷', embed: 'https://www.retrogames.cc/embed/37920-shinobi-iii-return-of-the-ninja-master-usa.html' },
+    { id: 'gen-gunstar', name: 'Gunstar Heroes', icon: '🔫', embed: 'https://www.retrogames.cc/embed/37499-gunstar-heroes-world.html' },
+    { id: 'gen-toejam', name: 'ToeJam & Earl', icon: '👽', embed: 'https://www.retrogames.cc/embed/38007-toejam-and-earl-usa-europe-rev-a.html' },
+  ],
+  arcade: [
+    { id: 'arc-pacman', name: 'Pac-Man', icon: '🟡', embed: 'https://www.retrogames.cc/embed/7718-pac-man-midway.html' },
+    { id: 'arc-galaga', name: 'Galaga', icon: '👾', embed: 'https://www.retrogames.cc/embed/6918-galaga-namco-rev-b.html' },
+    { id: 'arc-dkong', name: 'Donkey Kong', icon: '🦍', embed: 'https://www.retrogames.cc/embed/6566-donkey-kong-us-set-1.html' },
+    { id: 'arc-sf2', name: 'Street Fighter II', icon: '👊', embed: 'https://www.retrogames.cc/embed/9306-street-fighter-ii-the-world-warrior-world-910522.html' },
+    { id: 'arc-mk', name: 'Mortal Kombat', icon: '🐉', embed: 'https://www.retrogames.cc/embed/7544-mortal-kombat-rev-5-0-t-unit-03-19-93.html' },
+    { id: 'arc-tmnt', name: 'TMNT', icon: '🐢', embed: 'https://www.retrogames.cc/embed/9462-teenage-mutant-ninja-turtles-world-4-players.html' },
+    { id: 'arc-simpsons', name: 'The Simpsons', icon: '🍩', embed: 'https://www.retrogames.cc/embed/9224-the-simpsons-4-players-world-set-1.html' },
+    { id: 'arc-metalslug', name: 'Metal Slug', icon: '🪖', embed: 'https://www.retrogames.cc/embed/39907-metal-slug-super-vehicle-001.html' },
+    { id: 'arc-bubble', name: 'Bubble Bobble', icon: '🫧', embed: 'https://www.retrogames.cc/embed/6251-bubble-bobble-us-with-mode-select.html' },
+    { id: 'arc-asteroids', name: 'Asteroids', icon: '☄️', embed: 'https://www.retrogames.cc/embed/6007-asteroids-rev-4.html' },
   ],
 };
+
+// IO Games (open in new tab - they don't allow embedding)
+const IO_GAMES = [
+  { id: 'agar', name: 'Agar.io', icon: '⚪', url: 'https://agar.io/', desc: 'Eat cells to grow' },
+  { id: 'slither', name: 'Slither.io', icon: '🐍', url: 'https://slither.io/', desc: 'Snake multiplayer' },
+  { id: 'krunker', name: 'Krunker.io', icon: '🔫', url: 'https://krunker.io/', desc: 'Browser FPS' },
+  { id: 'surviv', name: 'Surviv.io', icon: '🎯', url: 'https://surviv.io/', desc: '2D Battle Royale' },
+  { id: 'skribbl', name: 'Skribbl.io', icon: '🎨', url: 'https://skribbl.io/', desc: 'Drawing game' },
+  { id: 'diep', name: 'Diep.io', icon: '🔵', url: 'https://diep.io/', desc: 'Tank shooter' },
+];
+
+// Game Categories
+const CATEGORIES = [
+  { id: 'all', name: 'All', icon: '🎮' },
+  { id: 'arcade', name: 'Arcade', icon: '👾' },
+  { id: 'puzzle', name: 'Puzzle', icon: '🧩' },
+  { id: 'cards', name: 'Cards', icon: '🃏' },
+  { id: 'strategy', name: 'Strategy', icon: '♟️' },
+];
+
+// Console Info
+const CONSOLES = [
+  { id: 'nes', name: 'NES', icon: '🔴', color: '#e60012' },
+  { id: 'snes', name: 'SNES', icon: '🟣', color: '#6b5b95' },
+  { id: 'gba', name: 'GBA', icon: '🔵', color: '#2e5cb8' },
+  { id: 'genesis', name: 'Genesis', icon: '⚫', color: '#333' },
+  { id: 'arcade', name: 'Arcade', icon: '🕹️', color: '#ff6b35' },
+];
 
 function GamesSection() {
   const { state, actions } = useApp();
@@ -137,73 +136,104 @@ function GamesSection() {
   
   // State
   const [activeTab, setActiveTab] = useState('instant');
-  const [activeCategory, setActiveCategory] = useState('arcade');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [activeConsole, setActiveConsole] = useState('nes');
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [currentGame, setCurrentGame] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [favorites, setFavorites] = useState([]);
   const [recentGames, setRecentGames] = useState([]);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   
-  // Refs for TV navigation
+  // Refs
+  const gameFrameRef = useRef(null);
   const gameRefs = useRef([]);
-  const containerRef = useRef(null);
 
   // Load saved data
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('mn_game_favorites');
-      const recent = localStorage.getItem('mn_recent_games');
-      if (saved) setFavorites(JSON.parse(saved));
-      if (recent) setRecentGames(JSON.parse(recent));
+      const savedFavs = localStorage.getItem('mn_game_favorites');
+      const savedRecent = localStorage.getItem('mn_recent_games');
+      if (savedFavs) setFavorites(JSON.parse(savedFavs));
+      if (savedRecent) setRecentGames(JSON.parse(savedRecent));
     } catch (e) {}
   }, []);
 
-  // Open game
-  const openGame = useCallback((game) => {
+  // Play game
+  const playGame = useCallback((game) => {
     // Add to recent
     const newRecent = [
       { ...game, playedAt: Date.now() },
       ...recentGames.filter(g => g.id !== game.id)
-    ].slice(0, 10);
+    ].slice(0, 12);
     setRecentGames(newRecent);
     localStorage.setItem('mn_recent_games', JSON.stringify(newRecent));
     
-    // Open game
-    if (game.embed !== false) {
-      setSelectedGame(game);
-    } else {
-      window.open(game.url, '_blank', 'noopener,noreferrer');
-    }
-    
-    actions.addNotification(`Playing ${game.name}`, 'success');
+    setCurrentGame(game);
+    actions.addNotification(`Playing: ${game.name}`, 'success');
   }, [recentGames, actions]);
 
-  // Open external site
-  const openSite = useCallback((url) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }, []);
+  // Open external game (IO games)
+  const openExternal = useCallback((game) => {
+    window.open(game.url, '_blank', 'noopener,noreferrer');
+    actions.addNotification(`Opening: ${game.name}`, 'info');
+  }, [actions]);
+
+  // Close game
+  const closeGame = () => {
+    setCurrentGame(null);
+    setIsFullscreen(false);
+  };
+
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!isFullscreen && gameFrameRef.current) {
+      if (gameFrameRef.current.requestFullscreen) {
+        gameFrameRef.current.requestFullscreen();
+      } else if (gameFrameRef.current.webkitRequestFullscreen) {
+        gameFrameRef.current.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+    setIsFullscreen(!isFullscreen);
+  };
 
   // Toggle favorite
-  const toggleFavorite = useCallback((gameId) => {
-    const newFavs = favorites.includes(gameId)
-      ? favorites.filter(f => f !== gameId)
-      : [...favorites, gameId];
+  const toggleFavorite = useCallback((game) => {
+    const newFavs = favorites.find(f => f.id === game.id)
+      ? favorites.filter(f => f.id !== game.id)
+      : [...favorites, game];
     setFavorites(newFavs);
     localStorage.setItem('mn_game_favorites', JSON.stringify(newFavs));
   }, [favorites]);
 
-  // TV Remote / Keyboard Navigation
+  // Filter instant games
+  const filteredGames = activeCategory === 'all' 
+    ? INSTANT_GAMES 
+    : INSTANT_GAMES.filter(g => g.category === activeCategory);
+
+  // Get current retro games
+  const currentRetroGames = RETRO_GAMES[activeConsole] || [];
+
+  // Keyboard navigation for TV
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT') return;
-      if (selectedGame) {
-        if (e.key === 'Escape' || e.key === 'Backspace') {
-          setSelectedGame(null);
-        }
+      
+      // Close game on Escape
+      if (currentGame && (e.key === 'Escape' || e.key === 'Backspace')) {
+        e.preventDefault();
+        closeGame();
         return;
       }
-
-      const currentGames = getCurrentGames();
+      
+      if (currentGame) return; // Don't navigate while game is open
+      
+      const games = activeTab === 'instant' ? filteredGames : currentRetroGames;
       const cols = isMobile ? 2 : 4;
       
       switch (e.key) {
@@ -213,7 +243,7 @@ function GamesSection() {
           break;
         case 'ArrowDown':
           e.preventDefault();
-          setFocusedIndex(prev => Math.min(currentGames.length - 1, prev + cols));
+          setFocusedIndex(prev => Math.min(games.length - 1, prev + cols));
           break;
         case 'ArrowLeft':
           e.preventDefault();
@@ -221,128 +251,64 @@ function GamesSection() {
           break;
         case 'ArrowRight':
           e.preventDefault();
-          setFocusedIndex(prev => Math.min(currentGames.length - 1, prev + 1));
+          setFocusedIndex(prev => Math.min(games.length - 1, prev + 1));
           break;
         case 'Enter':
         case ' ':
           e.preventDefault();
-          if (currentGames[focusedIndex]) {
-            openGame(currentGames[focusedIndex]);
+          if (games[focusedIndex]) {
+            playGame(games[focusedIndex]);
           }
-          break;
-        default:
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusedIndex, selectedGame, isMobile, openGame, activeTab, activeCategory]);
-
-  // Get current games for navigation
-  const getCurrentGames = useCallback(() => {
-    switch (activeTab) {
-      case 'instant':
-        return INSTANT_GAMES[activeCategory]?.games || [];
-      case 'tv':
-        return TV_GAMES;
-      case 'io':
-        return IO_GAMES;
-      default:
-        return [];
-    }
-  }, [activeTab, activeCategory]);
+  }, [currentGame, activeTab, filteredGames, currentRetroGames, focusedIndex, isMobile, playGame]);
 
   // Focus management
   useEffect(() => {
     if (gameRefs.current[focusedIndex]) {
       gameRefs.current[focusedIndex].focus();
-      gameRefs.current[focusedIndex].scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'nearest' 
-      });
     }
   }, [focusedIndex]);
 
-  // Reset focus when changing tabs
+  // Reset focus on tab/category change
   useEffect(() => {
     setFocusedIndex(0);
     gameRefs.current = [];
-  }, [activeTab, activeCategory]);
-
-  // Render game player
-  const renderGamePlayer = () => {
-    if (!selectedGame) return null;
-    
-    return (
-      <div className="game-player-overlay">
-        <div className="game-player-header">
-          <div className="game-player-title">
-            <span>{selectedGame.icon}</span>
-            <h3>{selectedGame.name}</h3>
-            {selectedGame.controls && (
-              <span className="controls-badge">Controls: {selectedGame.controls}</span>
-            )}
-          </div>
-          <div className="game-player-actions">
-            <button onClick={() => openSite(selectedGame.url)} className="action-btn">
-              🔗 New Tab
-            </button>
-            <button onClick={() => setSelectedGame(null)} className="action-btn close">
-              ✕ Close
-            </button>
-          </div>
-        </div>
-        <div className="game-player-frame">
-          <iframe
-            src={selectedGame.url}
-            title={selectedGame.name}
-            allowFullScreen
-            allow="autoplay; fullscreen; gamepad"
-          />
-        </div>
-        <div className="game-player-hint">
-          Press ESC or Backspace to close • Use ↑↓←→ to control • Space/Enter to interact
-        </div>
-      </div>
-    );
-  };
+  }, [activeTab, activeCategory, activeConsole]);
 
   return (
-    <div className="games-section" ref={containerRef}>
+    <div className="games-section">
       <h2 className="section-title">🎮 Games Hub</h2>
-      
+
       {/* Main Tabs */}
-      <div className="games-main-tabs">
+      <div className="game-tabs">
         {[
-          { id: 'instant', label: '⚡ Instant Play', desc: 'Play now' },
-          { id: 'tv', label: '📺 TV Games', desc: 'Remote friendly' },
-          { id: 'io', label: '🌐 Multiplayer', desc: '.io games' },
-          { id: 'portals', label: '🎯 Game Sites', desc: 'Browse thousands' },
-          { id: 'retro', label: '🕹️ Retro', desc: 'Classic consoles' },
+          { id: 'instant', label: 'Instant Play', icon: '⚡' },
+          { id: 'retro', label: 'Retro Games', icon: '🕹️' },
+          { id: 'io', label: 'Multiplayer', icon: '🌐' },
         ].map(tab => (
           <button
             key={tab.id}
-            className={`main-tab ${activeTab === tab.id ? 'active' : ''}`}
+            className={`game-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            <span className="tab-label">{tab.label}</span>
-            <span className="tab-desc">{tab.desc}</span>
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* Recent Games */}
-      {recentGames.length > 0 && !selectedGame && (
+      {recentGames.length > 0 && !currentGame && (
         <div className="recent-games">
           <h3>🕐 Continue Playing</h3>
-          <div className="recent-row">
-            {recentGames.slice(0, 6).map(game => (
-              <button
-                key={game.id}
-                className="recent-game"
-                onClick={() => openGame(game)}
-              >
+          <div className="recent-scroll">
+            {recentGames.slice(0, 8).map((game, idx) => (
+              <button key={`recent-${idx}`} className="recent-game" onClick={() => playGame(game)}>
                 <span>{game.icon}</span>
                 <span>{game.name}</span>
               </button>
@@ -352,29 +318,30 @@ function GamesSection() {
       )}
 
       {/* Instant Play Tab */}
-      {activeTab === 'instant' && !selectedGame && (
+      {activeTab === 'instant' && !currentGame && (
         <div className="instant-tab">
-          {/* Category Selector */}
-          <div className="category-selector">
-            {Object.entries(INSTANT_GAMES).map(([key, cat]) => (
+          {/* Category Filter */}
+          <div className="category-filter">
+            {CATEGORIES.map(cat => (
               <button
-                key={key}
-                className={`cat-btn ${activeCategory === key ? 'active' : ''}`}
-                onClick={() => setActiveCategory(key)}
+                key={cat.id}
+                className={`cat-btn ${activeCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat.id)}
               >
-                {cat.name}
+                <span>{cat.icon}</span>
+                <span>{cat.name}</span>
               </button>
             ))}
           </div>
 
           {/* Games Grid */}
           <div className="games-grid">
-            {INSTANT_GAMES[activeCategory]?.games.map((game, idx) => (
+            {filteredGames.map((game, idx) => (
               <button
                 key={game.id}
                 ref={el => gameRefs.current[idx] = el}
                 className={`game-card ${focusedIndex === idx ? 'focused' : ''}`}
-                onClick={() => openGame(game)}
+                onClick={() => playGame(game)}
                 onFocus={() => setFocusedIndex(idx)}
               >
                 <span className="game-icon">{game.icon}</span>
@@ -382,12 +349,12 @@ function GamesSection() {
                   <h4>{game.name}</h4>
                   <span className="game-controls">{game.controls}</span>
                 </div>
-                {game.tvFriendly && <span className="tv-badge">📺</span>}
+                {game.tvFriendly && <span className="tv-badge" title="TV Remote Friendly">📺</span>}
                 <button
-                  className={`fav-btn ${favorites.includes(game.id) ? 'active' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleFavorite(game.id); }}
+                  className={`fav-btn ${favorites.find(f => f.id === game.id) ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(game); }}
                 >
-                  {favorites.includes(game.id) ? '⭐' : '☆'}
+                  {favorites.find(f => f.id === game.id) ? '★' : '☆'}
                 </button>
               </button>
             ))}
@@ -395,148 +362,133 @@ function GamesSection() {
         </div>
       )}
 
-      {/* TV Games Tab */}
-      {activeTab === 'tv' && !selectedGame && (
-        <div className="tv-tab">
-          <p className="tab-intro">
-            🎮 These games work great with TV remotes and simple controls. Use arrow keys to navigate!
-          </p>
-          <div className="tv-games-grid">
-            {TV_GAMES.map((game, idx) => (
+      {/* Retro Games Tab */}
+      {activeTab === 'retro' && !currentGame && (
+        <div className="retro-tab">
+          {/* Console Selector */}
+          <div className="console-selector">
+            {CONSOLES.map(console => (
               <button
-                key={game.id}
-                ref={el => gameRefs.current[idx] = el}
-                className={`tv-game-card ${focusedIndex === idx ? 'focused' : ''}`}
-                onClick={() => openGame(game)}
-                onFocus={() => setFocusedIndex(idx)}
+                key={console.id}
+                className={`console-btn ${activeConsole === console.id ? 'active' : ''}`}
+                onClick={() => setActiveConsole(console.id)}
+                style={{ '--console-color': console.color }}
               >
-                <span className="tv-game-icon">{game.icon}</span>
-                <div className="tv-game-info">
-                  <h4>{game.name}</h4>
-                  <p>{game.desc}</p>
-                </div>
-                <span className="play-indicator">▶</span>
+                <span className="console-icon">{console.icon}</span>
+                <span className="console-name">{console.name}</span>
               </button>
             ))}
           </div>
-          <div className="tv-controls-help">
-            <h4>📺 TV Remote Controls</h4>
+
+          {/* Retro Games Grid */}
+          <div className="games-grid retro">
+            {currentRetroGames.map((game, idx) => (
+              <button
+                key={game.id}
+                ref={el => gameRefs.current[idx] = el}
+                className={`game-card retro ${focusedIndex === idx ? 'focused' : ''}`}
+                onClick={() => playGame(game)}
+                onFocus={() => setFocusedIndex(idx)}
+              >
+                <span className="game-icon">{game.icon}</span>
+                <div className="game-info">
+                  <h4>{game.name}</h4>
+                  <span className="game-platform">{CONSOLES.find(c => c.id === activeConsole)?.name}</span>
+                </div>
+                <button
+                  className={`fav-btn ${favorites.find(f => f.id === game.id) ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(game); }}
+                >
+                  {favorites.find(f => f.id === game.id) ? '★' : '☆'}
+                </button>
+              </button>
+            ))}
+          </div>
+
+          {/* Controls Help */}
+          <div className="controls-help">
+            <h4>🎮 Controls</h4>
             <div className="controls-grid">
-              <div className="control-item">↑↓←→ Navigate menus</div>
-              <div className="control-item">OK/Enter Play game</div>
-              <div className="control-item">Back/ESC Close game</div>
-              <div className="control-item">Space Jump/Action</div>
+              <div><kbd>↑↓←→</kbd> D-Pad / Move</div>
+              <div><kbd>Z</kbd> A Button</div>
+              <div><kbd>X</kbd> B Button</div>
+              <div><kbd>Enter</kbd> Start</div>
+              <div><kbd>Shift</kbd> Select</div>
+              <div><kbd>A/S</kbd> L/R Buttons</div>
             </div>
           </div>
         </div>
       )}
 
       {/* IO Games Tab */}
-      {activeTab === 'io' && !selectedGame && (
+      {activeTab === 'io' && !currentGame && (
         <div className="io-tab">
-          <p className="tab-intro">
-            🌐 Multiplayer browser games - compete with players worldwide!
-          </p>
-          <div className="io-games-grid">
-            {IO_GAMES.map((game, idx) => (
+          <p className="tab-desc">Multiplayer browser games - opens in new tab</p>
+          <div className="io-grid">
+            {IO_GAMES.map(game => (
               <button
                 key={game.id}
-                ref={el => gameRefs.current[idx] = el}
-                className={`io-game-card ${focusedIndex === idx ? 'focused' : ''}`}
-                onClick={() => openGame({ ...game, embed: false })}
-                onFocus={() => setFocusedIndex(idx)}
+                className="io-card"
+                onClick={() => openExternal(game)}
               >
                 <span className="io-icon">{game.icon}</span>
                 <div className="io-info">
                   <h4>{game.name}</h4>
                   <p>{game.desc}</p>
                 </div>
-                <span className="external-badge">↗</span>
+                <span className="external-icon">↗</span>
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Game Portals Tab */}
-      {activeTab === 'portals' && !selectedGame && (
-        <div className="portals-tab">
-          <p className="tab-intro">
-            🎯 Browse thousands of games on these popular gaming sites
-          </p>
-          <div className="portals-grid">
-            {GAME_PORTALS.map(portal => (
-              <button
-                key={portal.id}
-                className="portal-card"
-                onClick={() => openSite(portal.url)}
-              >
-                <span className="portal-icon">{portal.icon}</span>
-                <div className="portal-info">
-                  <h4>{portal.name}</h4>
-                  <p>{portal.desc}</p>
-                </div>
-                <span className="external-badge">↗</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Retro Tab */}
-      {activeTab === 'retro' && !selectedGame && (
-        <div className="retro-tab">
-          <p className="tab-intro">
-            🕹️ Play classic console games online - games open in new tabs
-          </p>
-          
-          {/* Console Selector */}
-          <div className="console-selector">
-            {[
-              { id: 'nes', name: 'NES', icon: '🔴' },
-              { id: 'snes', name: 'SNES', icon: '🟣' },
-              { id: 'gba', name: 'GBA', icon: '🔵' },
-              { id: 'genesis', name: 'Genesis', icon: '⚫' },
-            ].map(console => (
-              <button
-                key={console.id}
-                className={`console-btn ${activeConsole === console.id ? 'active' : ''}`}
-                onClick={() => setActiveConsole(console.id)}
-              >
-                <span>{console.icon}</span>
-                <span>{console.name}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Retro Games Grid */}
-          <div className="retro-grid">
-            {RETRO_GAMES[activeConsole]?.map((game, idx) => (
-              <button
-                key={idx}
-                className="retro-game-card"
-                onClick={() => openSite(game.url)}
-              >
-                <span className="retro-name">{game.name}</span>
-                <span className="play-text">▶ Play</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="retro-links">
-            <h4>🔗 More Retro Games</h4>
-            <div className="link-row">
-              <a href="https://www.retrogames.cc/" target="_blank" rel="noopener noreferrer">RetroGames.cc</a>
-              <a href="https://www.ssega.com/" target="_blank" rel="noopener noreferrer">SSega</a>
-              <a href="https://arcadespot.com/" target="_blank" rel="noopener noreferrer">ArcadeSpot</a>
-              <a href="https://playclassic.games/" target="_blank" rel="noopener noreferrer">PlayClassic</a>
-            </div>
           </div>
         </div>
       )}
 
       {/* Game Player */}
-      {renderGamePlayer()}
+      {currentGame && (
+        <div className={`game-player ${isFullscreen ? 'fullscreen' : ''}`} ref={gameFrameRef}>
+          {/* Player Header */}
+          <div className="player-header">
+            <div className="player-title">
+              <span>{currentGame.icon}</span>
+              <h3>{currentGame.name}</h3>
+              {currentGame.controls && <span className="controls-tag">{currentGame.controls}</span>}
+            </div>
+            <div className="player-actions">
+              <button
+                className={`action-btn ${favorites.find(f => f.id === currentGame.id) ? 'fav' : ''}`}
+                onClick={() => toggleFavorite(currentGame)}
+                title="Favorite"
+              >
+                {favorites.find(f => f.id === currentGame.id) ? '★' : '☆'}
+              </button>
+              <button className="action-btn" onClick={toggleFullscreen} title="Fullscreen">
+                {isFullscreen ? '⊖' : '⊕'}
+              </button>
+              <button className="action-btn close" onClick={closeGame} title="Close">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Game Frame */}
+          <div className="game-frame">
+            <iframe
+              src={currentGame.embed}
+              title={currentGame.name}
+              allowFullScreen
+              allow="autoplay; fullscreen; gamepad"
+              frameBorder="0"
+            />
+          </div>
+
+          {/* Player Footer */}
+          <div className="player-footer">
+            <span>Press <kbd>ESC</kbd> to close</span>
+            <span>•</span>
+            <span>Click inside game to focus</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

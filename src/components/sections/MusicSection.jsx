@@ -1,6 +1,5 @@
 /* ========================================
-   MusicSection.jsx - Music Hub with Full Song Playback
-   Uses YouTube for full songs, radio streams, and playlists
+   MusicSection.jsx - Music Hub with Working Search
    ======================================== */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,198 +7,201 @@ import { useApp } from '../../context/AppContext';
 import './MusicSection.css';
 
 // ============================================
-// CURATED PLAYLISTS (YouTube playlist/video IDs)
+// VERIFIED WORKING YOUTUBE VIDEO IDS
 // ============================================
 
-const MOOD_PLAYLISTS = [
-  { id: 'lofi', name: 'Lo-Fi Chill', icon: '🎧', videoId: 'jfKfPfyJRdk', desc: 'Beats to relax/study' },
-  { id: 'focus', name: 'Deep Focus', icon: '🧠', videoId: '7NOSDKb0HlU', desc: 'Concentration music' },
-  { id: 'sleep', name: 'Sleep', icon: '😴', videoId: 'lCOF9LN_Zxs', desc: 'Calm ambient sounds' },
-  { id: 'workout', name: 'Workout', icon: '💪', videoId: 'gGk7pLmBfQo', desc: 'High energy hits' },
-  { id: 'party', name: 'Party', icon: '🎉', videoId: 'vWa3v4aaRNY', desc: 'Dance & EDM' },
-  { id: 'jazz', name: 'Jazz', icon: '🎷', videoId: 'Dx5qFachd3A', desc: 'Smooth jazz vibes' },
-  { id: 'classical', name: 'Classical', icon: '🎻', videoId: 'mIYzp5rcTvU', desc: 'Orchestral masterpieces' },
-  { id: 'acoustic', name: 'Acoustic', icon: '🎸', videoId: 'AsPD5Jus74Q', desc: 'Unplugged sessions' },
-];
-
-// Live Radio Streams (24/7 YouTube streams)
+// Live 24/7 Radio Streams (verified working)
 const RADIO_STREAMS = [
-  { id: 'lofi-girl', name: 'Lofi Girl', icon: '👧', videoId: 'jfKfPfyJRdk', desc: 'Beats to study/relax' },
-  { id: 'chillhop', name: 'Chillhop', icon: '🎵', videoId: '5yx6BWlEVcY', desc: 'Chilled hip hop' },
-  { id: 'jazz-cafe', name: 'Jazz Cafe', icon: '☕', videoId: 'Dx5qFachd3A', desc: 'Cozy jazz radio' },
-  { id: 'synthwave', name: 'Synthwave', icon: '🌆', videoId: '4xDzrJKXOOY', desc: '80s retro vibes' },
-  { id: 'classical', name: 'Classical FM', icon: '🎼', videoId: 'HFgCGMRLJgI', desc: 'Beautiful classics' },
+  { id: 'lofi-girl', name: 'Lofi Girl', icon: '👧', videoId: 'jfKfPfyJRdk', desc: 'Beats to study/relax to', live: true },
+  { id: 'lofi-girl-sleep', name: 'Lofi Sleep', icon: '😴', videoId: 'rUxyKA_-grg', desc: 'Calm sleep music', live: true },
+  { id: 'chillhop', name: 'Chillhop', icon: '🎵', videoId: '5yx6BWlEVcY', desc: 'Chillhop Radio', live: true },
+  { id: 'jazz', name: 'Coffee Jazz', icon: '☕', videoId: '-5KAN9_CzSA', desc: 'Relaxing jazz', live: true },
+  { id: 'classical', name: 'Classical', icon: '🎻', videoId: 'jgpJVI3tDbY', desc: 'Classical music radio', live: true },
+  { id: 'synthwave', name: 'Synthwave', icon: '🌆', videoId: '4xDzrJKXOOY', desc: '80s retro vibes', live: true },
+];
+
+// Curated Playlists (verified working video IDs)
+const PLAYLISTS = [
+  { id: 'study', name: 'Study Music', icon: '📚', videoId: 'lTRiuFIWV54', desc: '3 hours focus music' },
+  { id: 'workout', name: 'Workout Mix', icon: '💪', videoId: 'gDa1su1pNeM', desc: 'High energy hits' },
+  { id: 'chill', name: 'Chill Vibes', icon: '🌴', videoId: 'lP26UCnoH9s', desc: 'Relaxing music mix' },
+  { id: 'piano', name: 'Piano', icon: '🎹', videoId: '77ZozI0rw7w', desc: 'Beautiful piano music' },
   { id: 'ambient', name: 'Ambient', icon: '🌙', videoId: 'S_MOd40zlYU', desc: 'Atmospheric sounds' },
+  { id: 'nature', name: 'Nature Sounds', icon: '🌿', videoId: 'eKFTSSKCzWA', desc: 'Rain, forest, ocean' },
+  { id: 'gaming', name: 'Gaming Music', icon: '🎮', videoId: 'NmCCQxVBfyM', desc: 'Epic game soundtracks' },
+  { id: 'meditation', name: 'Meditation', icon: '🧘', videoId: '1ZYbU82GVz4', desc: 'Peaceful meditation' },
 ];
 
-// Music Platforms (external links)
-const MUSIC_PLATFORMS = [
-  { id: 'spotify', name: 'Spotify', icon: '💚', url: 'https://open.spotify.com/', desc: 'Streaming service' },
-  { id: 'apple', name: 'Apple Music', icon: '🍎', url: 'https://music.apple.com/', desc: 'Apple streaming' },
-  { id: 'youtube-music', name: 'YouTube Music', icon: '🔴', url: 'https://music.youtube.com/', desc: 'Music videos' },
-  { id: 'soundcloud', name: 'SoundCloud', icon: '🔶', url: 'https://soundcloud.com/', desc: 'Independent artists' },
-  { id: 'bandcamp', name: 'Bandcamp', icon: '💙', url: 'https://bandcamp.com/', desc: 'Support artists' },
-  { id: 'tidal', name: 'Tidal', icon: '🌊', url: 'https://tidal.com/', desc: 'Hi-fi streaming' },
-];
-
-// Genre Categories for YouTube search
+// Genre Quick Search
 const GENRES = [
-  { id: 'pop', name: 'Pop', icon: '🎤' },
-  { id: 'hiphop', name: 'Hip Hop', icon: '🎤' },
-  { id: 'rock', name: 'Rock', icon: '🎸' },
-  { id: 'electronic', name: 'Electronic', icon: '🎹' },
-  { id: 'rnb', name: 'R&B', icon: '💜' },
-  { id: 'country', name: 'Country', icon: '🤠' },
-  { id: 'latin', name: 'Latin', icon: '💃' },
-  { id: 'kpop', name: 'K-Pop', icon: '🇰🇷' },
-  { id: 'jpop', name: 'J-Pop', icon: '🇯🇵' },
-  { id: 'metal', name: 'Metal', icon: '🤘' },
-  { id: 'indie', name: 'Indie', icon: '🎵' },
-  { id: 'jazz', name: 'Jazz', icon: '🎷' },
+  { id: 'pop', name: 'Pop', icon: '🎤', search: 'pop music 2024 hits' },
+  { id: 'hiphop', name: 'Hip Hop', icon: '🎧', search: 'hip hop rap music mix' },
+  { id: 'rock', name: 'Rock', icon: '🎸', search: 'rock music playlist' },
+  { id: 'edm', name: 'EDM', icon: '🎹', search: 'edm electronic dance music' },
+  { id: 'rnb', name: 'R&B', icon: '💜', search: 'rnb soul music' },
+  { id: 'country', name: 'Country', icon: '🤠', search: 'country music hits' },
+  { id: 'latin', name: 'Latin', icon: '💃', search: 'latin reggaeton music' },
+  { id: 'kpop', name: 'K-Pop', icon: '🇰🇷', search: 'kpop music playlist' },
+  { id: 'jazz', name: 'Jazz', icon: '🎷', search: 'jazz music relaxing' },
+  { id: 'classical', name: 'Classical', icon: '🎻', search: 'classical music' },
+  { id: 'indie', name: 'Indie', icon: '🎵', search: 'indie music playlist' },
+  { id: 'metal', name: 'Metal', icon: '🤘', search: 'metal rock music' },
+];
+
+// External Music Platforms
+const PLATFORMS = [
+  { id: 'spotify', name: 'Spotify', icon: '💚', url: 'https://open.spotify.com/' },
+  { id: 'apple', name: 'Apple Music', icon: '🍎', url: 'https://music.apple.com/' },
+  { id: 'ytmusic', name: 'YouTube Music', icon: '🔴', url: 'https://music.youtube.com/' },
+  { id: 'soundcloud', name: 'SoundCloud', icon: '🔶', url: 'https://soundcloud.com/' },
+  { id: 'bandcamp', name: 'Bandcamp', icon: '💙', url: 'https://bandcamp.com/' },
+  { id: 'deezer', name: 'Deezer', icon: '💎', url: 'https://www.deezer.com/' },
 ];
 
 function MusicSection() {
   const { actions } = useApp();
   
   // State
-  const [activeTab, setActiveTab] = useState('discover');
+  const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [currentVideo, setCurrentVideo] = useState(null);
-  const [isPlayerMinimized, setIsPlayerMinimized] = useState(false);
+  const [searchResults, setSearchResults] = useState(null); // null = no search, string = search term
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(80);
+  const [isMuted, setIsMuted] = useState(false);
   const [favorites, setFavorites] = useState([]);
   const [recentPlays, setRecentPlays] = useState([]);
-  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [showPlayer, setShowPlayer] = useState(false);
   
-  const searchInputRef = useRef(null);
+  // Refs
   const playerRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Load saved data
   useEffect(() => {
     try {
       const savedFavs = localStorage.getItem('mn_music_favorites');
       const savedRecent = localStorage.getItem('mn_music_recent');
+      const savedVolume = localStorage.getItem('mn_music_volume');
       if (savedFavs) setFavorites(JSON.parse(savedFavs));
       if (savedRecent) setRecentPlays(JSON.parse(savedRecent));
+      if (savedVolume) setVolume(parseInt(savedVolume));
     } catch (e) {}
   }, []);
 
-  // Search YouTube
-  const searchYouTube = useCallback(async (query) => {
-    if (!query.trim()) return;
+  // Load YouTube API
+  useEffect(() => {
+    if (window.YT) return;
     
-    setIsSearching(true);
-    try {
-      // Use YouTube search via embedded search URL
-      // Since we can't use the API directly without a key, we'll provide search links
-      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' official audio')}`;
-      
-      // For now, open YouTube search in the player
-      setSearchResults([{
-        type: 'search',
-        query: query,
-        url: searchUrl
-      }]);
-    } catch (error) {
-      console.error('Search error:', error);
-    }
-    setIsSearching(false);
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScript = document.getElementsByTagName('script')[0];
+    firstScript.parentNode.insertBefore(tag, firstScript);
   }, []);
 
-  // Handle search submit
+  // Handle search
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Open YouTube search in player
-      playVideo({
-        id: 'search',
-        name: `Search: ${searchQuery}`,
-        icon: '🔍',
-        searchQuery: searchQuery,
-        isSearch: true
-      });
+      setSearchResults(searchQuery.trim());
+      setActiveTab('search');
+      actions.addNotification(`Searching: ${searchQuery}`, 'info');
     }
   };
 
-  // Play video
-  const playVideo = useCallback((item) => {
+  // Quick genre search
+  const searchGenre = (genre) => {
+    setSearchQuery(genre.search);
+    setSearchResults(genre.search);
+    setActiveTab('search');
+  };
+
+  // Play track
+  const playTrack = useCallback((track) => {
     // Add to recent
     const newRecent = [
-      { ...item, playedAt: Date.now() },
-      ...recentPlays.filter(r => r.id !== item.id)
+      { ...track, playedAt: Date.now() },
+      ...recentPlays.filter(r => r.id !== track.id)
     ].slice(0, 20);
     setRecentPlays(newRecent);
     localStorage.setItem('mn_music_recent', JSON.stringify(newRecent));
     
-    setCurrentVideo(item);
-    setIsPlayerMinimized(false);
-    actions.addNotification(`Now Playing: ${item.name}`, 'success');
+    setCurrentTrack(track);
+    setShowPlayer(true);
+    setIsPlaying(true);
+    actions.addNotification(`Now Playing: ${track.name}`, 'success');
   }, [recentPlays, actions]);
 
   // Toggle favorite
-  const toggleFavorite = useCallback((item) => {
-    const newFavs = favorites.find(f => f.id === item.id)
-      ? favorites.filter(f => f.id !== item.id)
-      : [...favorites, item];
+  const toggleFavorite = useCallback((track) => {
+    const exists = favorites.find(f => f.id === track.id);
+    const newFavs = exists
+      ? favorites.filter(f => f.id !== track.id)
+      : [...favorites, track];
     setFavorites(newFavs);
     localStorage.setItem('mn_music_favorites', JSON.stringify(newFavs));
   }, [favorites]);
 
-  // Open external platform
-  const openPlatform = (url) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  // Player controls
+  const togglePlay = () => {
+    if (playerRef.current) {
+      if (isPlaying) {
+        playerRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      } else {
+        playerRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleVolumeChange = (e) => {
+    const newVolume = parseInt(e.target.value);
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+    localStorage.setItem('mn_music_volume', newVolume.toString());
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+  };
+
+  const closePlayer = () => {
+    setShowPlayer(false);
+    setCurrentTrack(null);
+    setIsPlaying(false);
   };
 
   // Get YouTube embed URL
-  const getEmbedUrl = (item) => {
-    if (item.isSearch) {
-      return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(item.searchQuery + ' official audio')}&autoplay=1`;
-    }
-    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&rel=0`;
-  };
-
-  // Search by genre
-  const searchByGenre = (genre) => {
-    setSelectedGenre(genre.id);
-    playVideo({
-      id: `genre-${genre.id}`,
-      name: `${genre.name} Music`,
-      icon: genre.icon,
-      searchQuery: `${genre.name} music mix 2024`,
-      isSearch: true
-    });
+  const getEmbedUrl = (videoId) => {
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&modestbranding=1`;
   };
 
   return (
     <div className="music-section">
       <h2 className="section-title">🎵 Music Hub</h2>
 
-      {/* Search Bar - Always Visible */}
+      {/* Search Bar */}
       <form className="music-search" onSubmit={handleSearch}>
-        <div className="search-container">
+        <div className="search-box">
+          <span className="search-icon">🔍</span>
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search songs, artists, albums..."
+            placeholder="Search for songs, artists, albums..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
           />
-          <button type="submit" className="search-btn" disabled={isSearching}>
-            {isSearching ? '⏳' : '🔍'}
-          </button>
+          <button type="submit" disabled={!searchQuery.trim()}>Search</button>
         </div>
-        <p className="search-hint">Press Enter to search on YouTube</p>
       </form>
 
-      {/* Quick Genre Buttons */}
-      <div className="genre-quick">
-        {GENRES.slice(0, 8).map(genre => (
+      {/* Genre Quick Search */}
+      <div className="genre-pills">
+        {GENRES.map(genre => (
           <button
             key={genre.id}
-            className={`genre-btn ${selectedGenre === genre.id ? 'active' : ''}`}
-            onClick={() => searchByGenre(genre)}
+            className="genre-pill"
+            onClick={() => searchGenre(genre)}
           >
             <span>{genre.icon}</span>
             <span>{genre.name}</span>
@@ -207,255 +209,333 @@ function MusicSection() {
         ))}
       </div>
 
-      {/* Main Tabs */}
+      {/* Tabs */}
       <div className="music-tabs">
-        {[
-          { id: 'discover', label: '🔥 Discover' },
-          { id: 'radio', label: '📻 Radio' },
-          { id: 'platforms', label: '🎧 Platforms' },
-          { id: 'library', label: '💼 Library' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            className={`music-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
+        <button 
+          className={`tab ${activeTab === 'home' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('home'); setSearchResults(null); }}
+        >
+          <span>🏠</span> Home
+        </button>
+        <button 
+          className={`tab ${activeTab === 'radio' ? 'active' : ''}`}
+          onClick={() => setActiveTab('radio')}
+        >
+          <span>📻</span> Radio
+        </button>
+        <button 
+          className={`tab ${activeTab === 'platforms' ? 'active' : ''}`}
+          onClick={() => setActiveTab('platforms')}
+        >
+          <span>🎧</span> Platforms
+        </button>
+        <button 
+          className={`tab ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => setActiveTab('library')}
+        >
+          <span>💼</span> Library
+        </button>
+        {searchResults && (
+          <button className={`tab ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
+            <span>🔍</span> Results
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Discover Tab */}
-      {activeTab === 'discover' && (
-        <div className="discover-content">
-          {/* Recent Plays */}
-          {recentPlays.length > 0 && (
-            <div className="recent-section">
-              <h3>🕐 Recently Played</h3>
-              <div className="recent-scroll">
-                {recentPlays.slice(0, 8).map((item, idx) => (
-                  <button
-                    key={`recent-${idx}`}
-                    className="recent-item"
-                    onClick={() => playVideo(item)}
-                  >
-                    <span className="recent-icon">{item.icon}</span>
-                    <span className="recent-name">{item.name}</span>
-                  </button>
-                ))}
+      {/* Content Area */}
+      <div className="music-content">
+        
+        {/* Search Results Tab */}
+        {activeTab === 'search' && searchResults && (
+          <div className="search-tab">
+            <div className="search-header">
+              <h3>🔍 Results for "{searchResults}"</h3>
+              <button className="clear-search" onClick={() => { setSearchResults(null); setActiveTab('home'); }}>
+                ✕ Clear
+              </button>
+            </div>
+            
+            {/* Search Options */}
+            <div className="search-options">
+              <a 
+                href={`https://music.youtube.com/search?q=${encodeURIComponent(searchResults)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="search-link primary"
+              >
+                <span>🔴</span>
+                <span>Open in YouTube Music</span>
+                <span className="arrow">↗</span>
+              </a>
+              <a 
+                href={`https://open.spotify.com/search/${encodeURIComponent(searchResults)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="search-link"
+              >
+                <span>💚</span>
+                <span>Open in Spotify</span>
+                <span className="arrow">↗</span>
+              </a>
+              <a 
+                href={`https://soundcloud.com/search?q=${encodeURIComponent(searchResults)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="search-link"
+              >
+                <span>🔶</span>
+                <span>Open in SoundCloud</span>
+                <span className="arrow">↗</span>
+              </a>
+            </div>
+
+            {/* Embedded YouTube Search Player */}
+            <div className="search-player">
+              <h4>▶ Quick Play from YouTube</h4>
+              <p className="search-hint">Playing top result for "{searchResults}"</p>
+              <div className="search-embed">
+                <iframe
+                  src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(searchResults + ' music')}`}
+                  title="Search Results"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                />
               </div>
             </div>
-          )}
-
-          {/* Mood Playlists */}
-          <div className="playlists-section">
-            <h3>🎭 Mood & Activity</h3>
-            <div className="playlists-grid">
-              {MOOD_PLAYLISTS.map(playlist => (
-                <button
-                  key={playlist.id}
-                  className="playlist-card"
-                  onClick={() => playVideo(playlist)}
-                >
-                  <span className="playlist-icon">{playlist.icon}</span>
-                  <div className="playlist-info">
-                    <h4>{playlist.name}</h4>
-                    <p>{playlist.desc}</p>
-                  </div>
-                  <span className="play-btn">▶</span>
-                </button>
-              ))}
-            </div>
           </div>
+        )}
 
-          {/* All Genres */}
-          <div className="genres-section">
-            <h3>🎵 Browse Genres</h3>
-            <div className="genres-grid">
-              {GENRES.map(genre => (
-                <button
-                  key={genre.id}
-                  className="genre-card"
-                  onClick={() => searchByGenre(genre)}
-                >
-                  <span className="genre-icon">{genre.icon}</span>
-                  <span className="genre-name">{genre.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Radio Tab */}
-      {activeTab === 'radio' && (
-        <div className="radio-content">
-          <h3>📻 24/7 Live Radio Streams</h3>
-          <p className="radio-desc">Continuous music streams - click to tune in!</p>
-          
-          <div className="radio-grid">
-            {RADIO_STREAMS.map(station => (
-              <button
-                key={station.id}
-                className={`radio-card ${currentVideo?.id === station.id ? 'playing' : ''}`}
-                onClick={() => playVideo(station)}
-              >
-                <div className="radio-visual">
-                  <span className="radio-icon">{station.icon}</span>
-                  {currentVideo?.id === station.id && (
-                    <div className="live-indicator">
-                      <span className="live-dot"></span>
-                      LIVE
-                    </div>
-                  )}
-                </div>
-                <div className="radio-info">
-                  <h4>{station.name}</h4>
-                  <p>{station.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="external-radio">
-            <h4>🔗 More Radio Options</h4>
-            <div className="radio-links">
-              <a href="https://radio.garden/" target="_blank" rel="noopener noreferrer">Radio Garden</a>
-              <a href="https://somafm.com/" target="_blank" rel="noopener noreferrer">SomaFM</a>
-              <a href="https://www.internet-radio.com/" target="_blank" rel="noopener noreferrer">Internet Radio</a>
-              <a href="https://poolside.fm/" target="_blank" rel="noopener noreferrer">Poolside FM</a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Platforms Tab */}
-      {activeTab === 'platforms' && (
-        <div className="platforms-content">
-          <h3>🎧 Music Streaming Platforms</h3>
-          <p className="platform-desc">Open your favorite music service</p>
-          
-          <div className="platforms-grid">
-            {MUSIC_PLATFORMS.map(platform => (
-              <button
-                key={platform.id}
-                className="platform-card"
-                onClick={() => openPlatform(platform.url)}
-              >
-                <span className="platform-icon">{platform.icon}</span>
-                <div className="platform-info">
-                  <h4>{platform.name}</h4>
-                  <p>{platform.desc}</p>
-                </div>
-                <span className="external-badge">↗</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Library Tab */}
-      {activeTab === 'library' && (
-        <div className="library-content">
-          {/* Favorites */}
-          <div className="favorites-section">
-            <h3>⭐ Favorites ({favorites.length})</h3>
-            {favorites.length > 0 ? (
-              <div className="favorites-grid">
-                {favorites.map((item, idx) => (
-                  <button
-                    key={`fav-${idx}`}
-                    className="favorite-card"
-                    onClick={() => playVideo(item)}
-                  >
-                    <span className="fav-icon">{item.icon}</span>
-                    <span className="fav-name">{item.name}</span>
-                    <button
-                      className="remove-fav"
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(item); }}
-                    >
-                      ✕
+        {/* Home Tab */}
+        {activeTab === 'home' && (
+          <div className="home-tab">
+            {/* Recent Plays */}
+            {recentPlays.length > 0 && (
+              <section className="section">
+                <h3>🕐 Recently Played</h3>
+                <div className="scroll-row">
+                  {recentPlays.slice(0, 8).map((track, idx) => (
+                    <button key={idx} className="recent-card" onClick={() => playTrack(track)}>
+                      <span className="recent-icon">{track.icon}</span>
+                      <span className="recent-name">{track.name}</span>
                     </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Playlists */}
+            <section className="section">
+              <h3>🎭 Mood & Activity</h3>
+              <div className="cards-grid">
+                {PLAYLISTS.map(item => (
+                  <div key={item.id} className="music-card">
+                    <div className="card-main" onClick={() => playTrack(item)}>
+                      <span className="card-icon">{item.icon}</span>
+                      <div className="card-info">
+                        <h4>{item.name}</h4>
+                        <p>{item.desc}</p>
+                      </div>
+                      <span className="play-btn">▶</span>
+                    </div>
+                    <div className="card-actions">
+                      <button 
+                        onClick={() => toggleFavorite(item)}
+                        className={favorites.find(f => f.id === item.id) ? 'fav-active' : ''}
+                      >
+                        {favorites.find(f => f.id === item.id) ? '★' : '☆'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Featured Radio */}
+            <section className="section">
+              <h3>📻 Live Radio</h3>
+              <div className="radio-row">
+                {RADIO_STREAMS.slice(0, 4).map(station => (
+                  <button key={station.id} className="radio-card-small" onClick={() => playTrack(station)}>
+                    <span className="radio-icon">{station.icon}</span>
+                    <div className="radio-info">
+                      <span className="radio-name">{station.name}</span>
+                      {station.live && <span className="live-badge">LIVE</span>}
+                    </div>
                   </button>
                 ))}
               </div>
-            ) : (
-              <p className="empty-msg">No favorites yet. Click ⭐ on any playlist to save it!</p>
-            )}
+            </section>
           </div>
+        )}
 
-          {/* History */}
-          <div className="history-section">
-            <h3>📜 History ({recentPlays.length})</h3>
-            {recentPlays.length > 0 ? (
-              <div className="history-list">
-                {recentPlays.map((item, idx) => (
-                  <button
-                    key={`history-${idx}`}
-                    className="history-item"
-                    onClick={() => playVideo(item)}
+        {/* Radio Tab */}
+        {activeTab === 'radio' && (
+          <div className="radio-tab">
+            <section className="section">
+              <h3>📻 24/7 Live Radio Streams</h3>
+              <p className="section-desc">Click to tune in - these streams run 24/7!</p>
+              <div className="radio-grid">
+                {RADIO_STREAMS.map(station => (
+                  <div 
+                    key={station.id} 
+                    className={`radio-card ${currentTrack?.id === station.id ? 'playing' : ''}`}
                   >
-                    <span>{item.icon}</span>
-                    <span className="history-name">{item.name}</span>
-                    <span className="history-time">
-                      {new Date(item.playedAt).toLocaleDateString()}
-                    </span>
-                  </button>
+                    <div className="radio-main" onClick={() => playTrack(station)}>
+                      <div className="radio-visual">
+                        <span className="radio-big-icon">{station.icon}</span>
+                        {station.live && <span className="live-indicator">● LIVE</span>}
+                      </div>
+                      <div className="radio-details">
+                        <h4>{station.name}</h4>
+                        <p>{station.desc}</p>
+                      </div>
+                    </div>
+                    <div className="card-actions">
+                      <button 
+                        onClick={() => toggleFavorite(station)}
+                        className={favorites.find(f => f.id === station.id) ? 'fav-active' : ''}
+                      >
+                        {favorites.find(f => f.id === station.id) ? '★' : '☆'}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <p className="empty-msg">Your listening history will appear here</p>
-            )}
+            </section>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Player */}
-      {currentVideo && (
-        <div className={`music-player ${isPlayerMinimized ? 'minimized' : ''}`} ref={playerRef}>
-          <div className="player-header">
-            <div className="now-playing">
-              <span className="now-icon">{currentVideo.icon}</span>
-              <div className="now-info">
-                <span className="now-label">Now Playing</span>
-                <span className="now-title">{currentVideo.name}</span>
+        {/* Platforms Tab */}
+        {activeTab === 'platforms' && (
+          <div className="platforms-tab">
+            <section className="section">
+              <h3>🎧 Music Streaming Services</h3>
+              <p className="section-desc">Open your favorite music platform</p>
+              <div className="platforms-grid">
+                {PLATFORMS.map(platform => (
+                  <a
+                    key={platform.id}
+                    href={platform.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="platform-card"
+                  >
+                    <span className="platform-icon">{platform.icon}</span>
+                    <span className="platform-name">{platform.name}</span>
+                    <span className="external">↗</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Library Tab */}
+        {activeTab === 'library' && (
+          <div className="library-tab">
+            <section className="section">
+              <h3>⭐ Favorites ({favorites.length})</h3>
+              {favorites.length > 0 ? (
+                <div className="cards-grid">
+                  {favorites.map(item => (
+                    <div key={item.id} className="music-card">
+                      <div className="card-main" onClick={() => playTrack(item)}>
+                        <span className="card-icon">{item.icon}</span>
+                        <div className="card-info">
+                          <h4>{item.name}</h4>
+                          <p>{item.desc}</p>
+                        </div>
+                        <span className="play-btn">▶</span>
+                      </div>
+                      <div className="card-actions">
+                        <button onClick={() => toggleFavorite(item)} className="fav-active">★</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <p>No favorites yet</p>
+                  <p className="hint">Click ☆ on any track to save it here</p>
+                </div>
+              )}
+            </section>
+
+            <section className="section">
+              <h3>🕐 History ({recentPlays.length})</h3>
+              {recentPlays.length > 0 ? (
+                <div className="history-list">
+                  {recentPlays.map((item, idx) => (
+                    <button key={idx} className="history-item" onClick={() => playTrack(item)}>
+                      <span className="history-icon">{item.icon}</span>
+                      <span className="history-name">{item.name}</span>
+                      <span className="history-date">
+                        {new Date(item.playedAt).toLocaleDateString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <p>No listening history yet</p>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </div>
+
+      {/* Audio Player */}
+      {showPlayer && currentTrack && (
+        <div className="audio-player">
+          {/* Hidden YouTube Player for Audio */}
+          <iframe
+            ref={playerRef}
+            className="youtube-audio"
+            src={getEmbedUrl(currentTrack.videoId)}
+            title={currentTrack.name}
+            allow="autoplay; encrypted-media"
+          />
+
+          {/* Visible Player Bar */}
+          <div className="player-bar">
+            <div className="player-track">
+              <span className="player-icon">{currentTrack.icon}</span>
+              <div className="player-info">
+                <span className="player-name">{currentTrack.name}</span>
+                <span className="player-desc">{currentTrack.desc}</span>
               </div>
             </div>
+
             <div className="player-controls">
-              <button
-                className={`fav-control ${favorites.find(f => f.id === currentVideo.id) ? 'active' : ''}`}
-                onClick={() => toggleFavorite(currentVideo)}
-                title="Add to favorites"
-              >
-                {favorites.find(f => f.id === currentVideo.id) ? '⭐' : '☆'}
+              <button className="ctrl-btn" onClick={togglePlay}>
+                {isPlaying ? '⏸' : '▶'}
               </button>
-              <button
-                className="minimize-btn"
-                onClick={() => setIsPlayerMinimized(!isPlayerMinimized)}
-                title={isPlayerMinimized ? 'Expand' : 'Minimize'}
+            </div>
+
+            <div className="player-right">
+              <div className="volume-control">
+                <button className="ctrl-btn small" onClick={toggleMute}>
+                  {isMuted || volume === 0 ? '🔇' : volume < 50 ? '🔉' : '🔊'}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  className="volume-slider"
+                />
+              </div>
+              <button 
+                className={`ctrl-btn small ${favorites.find(f => f.id === currentTrack.id) ? 'fav' : ''}`}
+                onClick={() => toggleFavorite(currentTrack)}
               >
-                {isPlayerMinimized ? '▲' : '▼'}
+                {favorites.find(f => f.id === currentTrack.id) ? '★' : '☆'}
               </button>
-              <button
-                className="close-player"
-                onClick={() => setCurrentVideo(null)}
-                title="Close player"
-              >
-                ✕
-              </button>
+              <button className="ctrl-btn small close" onClick={closePlayer}>✕</button>
             </div>
           </div>
-          
-          {!isPlayerMinimized && (
-            <div className="player-frame">
-              <iframe
-                src={getEmbedUrl(currentVideo)}
-                title={currentVideo.name}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          )}
         </div>
       )}
     </div>

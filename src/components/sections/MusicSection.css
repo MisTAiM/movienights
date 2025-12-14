@@ -28,11 +28,16 @@
 
 /* Search */
 .music-search {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.music-search form {
+  display: flex;
+  gap: 10px;
 }
 
 .music-search input {
-  width: 100%;
+  flex: 1;
   padding: 14px 18px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -49,6 +54,97 @@
 
 .music-search input::placeholder {
   color: rgba(255, 255, 255, 0.4);
+}
+
+.music-search button {
+  padding: 14px 28px;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.music-search button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+/* Search Results */
+.search-results {
+  margin-bottom: 24px;
+}
+
+.search-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.search-results-header h2 {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.back-btn {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.search-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.youtube-search-embed {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.youtube-search-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Search Instead Button */
+.search-instead {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.search-instead:hover {
+  transform: scale(1.02);
 }
 
 /* Genre Tabs */
@@ -247,6 +343,25 @@
 @media (max-width: 600px) {
   .music-page {
     padding: 16px;
+  }
+  
+  .music-search form {
+    flex-direction: column;
+  }
+  
+  .music-search button {
+    width: 100%;
+  }
+  
+  .search-results-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .back-btn {
+    width: 100%;
+    text-align: center;
   }
   
   .genre-tabs {

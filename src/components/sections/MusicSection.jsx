@@ -81,11 +81,14 @@ function MusicSection() {
   const { actions } = useApp();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchSubmitted, setSearchSubmitted] = useState('');
   const [activeGenre, setActiveGenre] = useState('all');
   const [currentSong, setCurrentSong] = useState(null);
+  const [showSearch, setShowSearch] = useState(false);
 
-  // Filter songs
+  // Filter songs from curated list
   const filteredSongs = useMemo(() => {
+    if (showSearch) return []; // Hide list when searching
     return SONGS.filter(song => {
       const matchesGenre = activeGenre === 'all' || song.genre === activeGenre;
       const matchesSearch = !searchQuery || 
@@ -93,11 +96,30 @@ function MusicSection() {
         song.artist.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesGenre && matchesSearch;
     });
-  }, [activeGenre, searchQuery]);
+  }, [activeGenre, searchQuery, showSearch]);
 
-  // Play song
+  // Handle search submit
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setSearchSubmitted(searchQuery.trim());
+      setShowSearch(true);
+      setCurrentSong(null);
+      actions.addNotification(`Searching for "${searchQuery}"`, 'info');
+    }
+  };
+
+  // Clear search and go back to list
+  const clearSearch = () => {
+    setShowSearch(false);
+    setSearchSubmitted('');
+    setSearchQuery('');
+  };
+
+  // Play song from curated list
   const playSong = (song) => {
     setCurrentSong(song);
+    setShowSearch(false);
     actions.addNotification(`Now playing: ${song.title}`, 'success');
   };
 
@@ -111,58 +133,91 @@ function MusicSection() {
       {/* Header */}
       <div className="music-header">
         <h1>🎵 Music</h1>
-        <p>Click any song to play - full songs, no previews</p>
+        <p>Search for any song or browse popular tracks</p>
       </div>
 
       {/* Search */}
-      <div className="music-search">
+      <form className="music-search" onSubmit={handleSearch}>
         <input
           type="text"
-          placeholder="Search songs or artists..."
+          placeholder="Search any song, artist, album..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-      </div>
+        <button type="submit">Search</button>
+      </form>
 
-      {/* Genre Filter */}
-      <div className="genre-tabs">
-        {GENRES.map(genre => (
-          <button
-            key={genre.id}
-            className={activeGenre === genre.id ? 'active' : ''}
-            onClick={() => setActiveGenre(genre.id)}
-          >
-            {genre.icon} {genre.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Songs List */}
-      <div className="songs-list">
-        {filteredSongs.length > 0 ? (
-          filteredSongs.map((song, idx) => (
-            <div
-              key={song.id}
-              className={`song-row ${currentSong?.id === song.id ? 'playing' : ''}`}
-              onClick={() => playSong(song)}
-            >
-              <span className="song-num">{idx + 1}</span>
-              <div className="song-info">
-                <span className="song-title">{song.title}</span>
-                <span className="song-artist">{song.artist}</span>
-              </div>
-              <span className="play-icon">▶</span>
-            </div>
-          ))
-        ) : (
-          <div className="no-results">
-            <p>No songs found for "{searchQuery}"</p>
+      {/* Search Results - YouTube Embed */}
+      {showSearch && searchSubmitted && (
+        <div className="search-results">
+          <div className="search-results-header">
+            <h2>Results for "{searchSubmitted}"</h2>
+            <button className="back-btn" onClick={clearSearch}>← Back to List</button>
           </div>
-        )}
-      </div>
+          <p className="search-hint">Click any video below to play full song:</p>
+          <div className="youtube-search-embed">
+            <iframe
+              src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(searchSubmitted + ' official audio')}`}
+              title={`Search: ${searchSubmitted}`}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
 
-      {/* Player */}
-      {currentSong && (
+      {/* Genre Filter - only show when not searching */}
+      {!showSearch && (
+        <div className="genre-tabs">
+          {GENRES.map(genre => (
+            <button
+              key={genre.id}
+              className={activeGenre === genre.id ? 'active' : ''}
+              onClick={() => setActiveGenre(genre.id)}
+            >
+              {genre.icon} {genre.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Songs List - only show when not searching */}
+      {!showSearch && (
+        <div className="songs-list">
+          {filteredSongs.length > 0 ? (
+            filteredSongs.map((song, idx) => (
+              <div
+                key={song.id}
+                className={`song-row ${currentSong?.id === song.id ? 'playing' : ''}`}
+                onClick={() => playSong(song)}
+              >
+                <span className="song-num">{idx + 1}</span>
+                <div className="song-info">
+                  <span className="song-title">{song.title}</span>
+                  <span className="song-artist">{song.artist}</span>
+                </div>
+                <span className="play-icon">▶</span>
+              </div>
+            ))
+          ) : (
+            <div className="no-results">
+              <p>No songs found matching "{searchQuery}"</p>
+              {searchQuery && (
+                <button className="search-instead" onClick={() => {
+                  setSearchSubmitted(searchQuery);
+                  setShowSearch(true);
+                }}>
+                  Search YouTube for "{searchQuery}"
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Player - for curated songs */}
+      {currentSong && !showSearch && (
         <div className="music-player">
           <div className="player-header">
             <div className="player-info">

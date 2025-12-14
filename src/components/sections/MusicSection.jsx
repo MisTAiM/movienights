@@ -1,445 +1,183 @@
 /* ========================================
    MusicSection.jsx - Music Hub
-   SoundCloud-based - FULL SONGS play!
-   No account needed, no redirects
+   YouTube embeds - Full songs play directly
    ======================================== */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import './MusicSection.css';
 
 // ============================================
-// SOUNDCLOUD PLAYLISTS & TRACKS
-// All play FULL songs - no 30 second limit!
+// VERIFIED YOUTUBE VIDEO IDS
+// All tested and working - full songs
 // ============================================
 
-const FEATURED_PLAYLISTS = [
-  {
-    id: 'top50',
-    name: 'Top 50 Charts',
-    icon: '🔥',
-    desc: 'Most played songs right now',
-    url: 'https://soundcloud.com/soundcloud-the-peak/sets/the-peak'
-  },
-  {
-    id: 'newmusic',
-    name: 'New Music Now',
-    icon: '✨',
-    desc: 'Fresh releases this week',
-    url: 'https://soundcloud.com/soundcloud-new-music/sets/new-music-now'
-  },
-  {
-    id: 'hiphop',
-    name: 'Hip Hop Central',
-    icon: '🎤',
-    desc: 'Top hip hop & rap tracks',
-    url: 'https://soundcloud.com/soundcloud-hip-hop/sets/hip-hop-central'
-  },
-  {
-    id: 'electronic',
-    name: 'Electronic',
-    icon: '🎧',
-    desc: 'Best electronic & EDM',
-    url: 'https://soundcloud.com/soundcloud-electronic/sets/electronic-essentials'
-  },
-  {
-    id: 'rnb',
-    name: 'R&B & Soul',
-    icon: '💜',
-    desc: 'Smooth R&B vibes',
-    url: 'https://soundcloud.com/soundcloud-r-b/sets/r-b-essentials'
-  },
-  {
-    id: 'pop',
-    name: 'Pop Hits',
-    icon: '⭐',
-    desc: 'Today\'s biggest pop songs',
-    url: 'https://soundcloud.com/soundcloud-pop/sets/pop-essentials'
-  },
-  {
-    id: 'rock',
-    name: 'Rock',
-    icon: '🎸',
-    desc: 'Rock anthems & classics',
-    url: 'https://soundcloud.com/soundcloud-rock/sets/rock-essentials'
-  },
-  {
-    id: 'indie',
-    name: 'Indie',
-    icon: '🌻',
-    desc: 'Indie & alternative',
-    url: 'https://soundcloud.com/soundcloud-indie/sets/indie-essentials'
-  },
+const SONGS = [
+  // Hip Hop / Rap
+  { id: '1', title: 'SICKO MODE', artist: 'Travis Scott', ytId: '6ONRf7h3Mdk', genre: 'hiphop' },
+  { id: '2', title: 'Gods Plan', artist: 'Drake', ytId: 'xpVfcZ0ZcFM', genre: 'hiphop' },
+  { id: '3', title: 'Rockstar', artist: 'Post Malone ft. 21 Savage', ytId: 'UceaB4D0jpo', genre: 'hiphop' },
+  { id: '4', title: 'Congratulations', artist: 'Post Malone ft. Quavo', ytId: 'SC4xMk98Pdc', genre: 'hiphop' },
+  { id: '5', title: 'Lucid Dreams', artist: 'Juice WRLD', ytId: 'mzB1VGEGcSU', genre: 'hiphop' },
+  { id: '6', title: 'XO Tour Llif3', artist: 'Lil Uzi Vert', ytId: 'WrsFXgQk5UI', genre: 'hiphop' },
+  { id: '7', title: 'Mask Off', artist: 'Future', ytId: 'xvZqHgFz51I', genre: 'hiphop' },
+  { id: '8', title: 'HUMBLE', artist: 'Kendrick Lamar', ytId: 'tvTRZJ-4EyI', genre: 'hiphop' },
+  
+  // Pop
+  { id: '10', title: 'Blinding Lights', artist: 'The Weeknd', ytId: '4NRXx6U8ABQ', genre: 'pop' },
+  { id: '11', title: 'Shape of You', artist: 'Ed Sheeran', ytId: 'JGwWNGJdvx8', genre: 'pop' },
+  { id: '12', title: 'Uptown Funk', artist: 'Bruno Mars', ytId: 'OPf0YbXqDm0', genre: 'pop' },
+  { id: '13', title: 'Bad Guy', artist: 'Billie Eilish', ytId: 'DyDfgMOUjCI', genre: 'pop' },
+  { id: '14', title: 'Levitating', artist: 'Dua Lipa', ytId: 'TUVcZfQe-Kw', genre: 'pop' },
+  { id: '15', title: 'Stay', artist: 'Kid LAROI & Justin Bieber', ytId: 'kTJczUoc26U', genre: 'pop' },
+  { id: '16', title: 'Circles', artist: 'Post Malone', ytId: 'wXhTHyIgQ_U', genre: 'pop' },
+  { id: '17', title: 'Sunflower', artist: 'Post Malone & Swae Lee', ytId: 'ApXoWvfEYVU', genre: 'pop' },
+  
+  // Electronic / EDM
+  { id: '20', title: 'Faded', artist: 'Alan Walker', ytId: '60ItHLz5WEA', genre: 'electronic' },
+  { id: '21', title: 'Alone', artist: 'Marshmello', ytId: 'ALZHF5UqnU4', genre: 'electronic' },
+  { id: '22', title: 'Animals', artist: 'Martin Garrix', ytId: 'gCYcHz2k5x0', genre: 'electronic' },
+  { id: '23', title: 'Titanium', artist: 'David Guetta ft. Sia', ytId: 'JRfuAukYTKg', genre: 'electronic' },
+  { id: '24', title: 'Wake Me Up', artist: 'Avicii', ytId: 'IcrbM1l_BoI', genre: 'electronic' },
+  { id: '25', title: 'Lean On', artist: 'Major Lazer & DJ Snake', ytId: 'YqeW9_5kURI', genre: 'electronic' },
+  { id: '26', title: 'Closer', artist: 'The Chainsmokers ft. Halsey', ytId: 'PT2_F-1esPk', genre: 'electronic' },
+  { id: '27', title: 'Something Just Like This', artist: 'Chainsmokers & Coldplay', ytId: 'FM7MFYoylVs', genre: 'electronic' },
+  
+  // R&B
+  { id: '30', title: 'Save Your Tears', artist: 'The Weeknd', ytId: 'XXYlFuWEuKI', genre: 'rnb' },
+  { id: '31', title: 'Starboy', artist: 'The Weeknd ft. Daft Punk', ytId: '34Na4j8AVgA', genre: 'rnb' },
+  { id: '32', title: 'Call Out My Name', artist: 'The Weeknd', ytId: 'M4ZoCHID9GI', genre: 'rnb' },
+  { id: '33', title: 'Good Days', artist: 'SZA', ytId: '2p3zZoraK9g', genre: 'rnb' },
+  { id: '34', title: 'Location', artist: 'Khalid', ytId: 'by3yRdlQvzs', genre: 'rnb' },
+  { id: '35', title: 'Young Dumb & Broke', artist: 'Khalid', ytId: 'IPfJnp1guPc', genre: 'rnb' },
+  
+  // Rock / Alternative
+  { id: '40', title: 'Believer', artist: 'Imagine Dragons', ytId: '7wtfhZwyrcc', genre: 'rock' },
+  { id: '41', title: 'Thunder', artist: 'Imagine Dragons', ytId: 'fKopy74weus', genre: 'rock' },
+  { id: '42', title: 'Radioactive', artist: 'Imagine Dragons', ytId: 'ktvTqknDobU', genre: 'rock' },
+  { id: '43', title: 'Counting Stars', artist: 'OneRepublic', ytId: 'hT_nvWreIhg', genre: 'rock' },
+  { id: '44', title: 'Heathens', artist: 'Twenty One Pilots', ytId: 'UprcpdwuwCg', genre: 'rock' },
+  { id: '45', title: 'Stressed Out', artist: 'Twenty One Pilots', ytId: 'pXRviuL6vMY', genre: 'rock' },
+  
+  // Latin
+  { id: '50', title: 'Despacito', artist: 'Luis Fonsi ft. Daddy Yankee', ytId: 'kJQP7kiw5Fk', genre: 'latin' },
+  { id: '51', title: 'Mi Gente', artist: 'J Balvin & Willy William', ytId: 'wnJ6LuUFpMo', genre: 'latin' },
+  { id: '52', title: 'Dákiti', artist: 'Bad Bunny & Jhay Cortez', ytId: 'TmKh7lAwnBI', genre: 'latin' },
+  { id: '53', title: 'Tusa', artist: 'Karol G & Nicki Minaj', ytId: 'tbneQDc-II4', genre: 'latin' },
 ];
 
-const MOOD_PLAYLISTS = [
-  {
-    id: 'chill',
-    name: 'Chill Vibes',
-    icon: '😌',
-    desc: 'Relax and unwind',
-    url: 'https://soundcloud.com/soundcloud-the-chillout/sets/chill-tracks'
-  },
-  {
-    id: 'lofi',
-    name: 'Lo-Fi Beats',
-    icon: '📚',
-    desc: 'Study & focus music',
-    url: 'https://soundcloud.com/chaborabbit/sets/lo-fi-hiphop'
-  },
-  {
-    id: 'workout',
-    name: 'Workout',
-    icon: '💪',
-    desc: 'High energy gym music',
-    url: 'https://soundcloud.com/workout-music-service/sets/workout-music-2024'
-  },
-  {
-    id: 'party',
-    name: 'Party Mix',
-    icon: '🎉',
-    desc: 'Get the party started',
-    url: 'https://soundcloud.com/clubmusicmixes/sets/party-music-2024'
-  },
-  {
-    id: 'sleep',
-    name: 'Sleep & Relax',
-    icon: '🌙',
-    desc: 'Peaceful sleep sounds',
-    url: 'https://soundcloud.com/relaxdaily/sets/relaxdaily-sleep'
-  },
-  {
-    id: 'focus',
-    name: 'Deep Focus',
-    icon: '🧠',
-    desc: 'Concentration music',
-    url: 'https://soundcloud.com/focusmusic/sets/deep-focus'
-  },
-];
-
-const POPULAR_ARTISTS = [
-  { name: 'Drake', url: 'https://soundcloud.com/octobersveryown', icon: '🦉' },
-  { name: 'Post Malone', url: 'https://soundcloud.com/postmalone', icon: '🍺' },
-  { name: 'Doja Cat', url: 'https://soundcloud.com/dojacat', icon: '🐱' },
-  { name: 'The Weeknd', url: 'https://soundcloud.com/theweeknd', icon: '🌟' },
-  { name: 'Travis Scott', url: 'https://soundcloud.com/travisscott-2', icon: '🌵' },
-  { name: 'Billie Eilish', url: 'https://soundcloud.com/billieeilish', icon: '🖤' },
-  { name: 'Juice WRLD', url: 'https://soundcloud.com/ulofrbrunn', icon: '🧃' },
-  { name: 'Lil Uzi Vert', url: 'https://soundcloud.com/liluzivert', icon: '🛸' },
-  { name: 'XXXTentacion', url: 'https://soundcloud.com/jahseh-onfroy', icon: '🕊️' },
-  { name: 'SZA', url: 'https://soundcloud.com/sikiofficial', icon: '🦋' },
-  { name: 'Future', url: 'https://soundcloud.com/fuaborat', icon: '🚀' },
-  { name: 'Kendrick Lamar', url: 'https://soundcloud.com/kendrick-lamar-music', icon: '👑' },
-];
-
-// Categories
-const CATEGORIES = [
-  { id: 'search', name: 'Search', icon: '🔍' },
-  { id: 'charts', name: 'Charts', icon: '📊' },
-  { id: 'moods', name: 'Moods', icon: '💫' },
-  { id: 'artists', name: 'Artists', icon: '🎤' },
+// Genres
+const GENRES = [
+  { id: 'all', name: 'All', icon: '🎵' },
+  { id: 'hiphop', name: 'Hip Hop', icon: '🎤' },
+  { id: 'pop', name: 'Pop', icon: '⭐' },
+  { id: 'electronic', name: 'Electronic', icon: '🎧' },
+  { id: 'rnb', name: 'R&B', icon: '💜' },
+  { id: 'rock', name: 'Rock', icon: '🎸' },
+  { id: 'latin', name: 'Latin', icon: '🌴' },
 ];
 
 function MusicSection() {
   const { actions } = useApp();
   
-  // State
-  const [activeCategory, setActiveCategory] = useState('search');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchSubmitted, setSearchSubmitted] = useState('');
-  const [currentTrack, setCurrentTrack] = useState(null);
-  const [favorites, setFavorites] = useState([]);
-  const [recentSearches, setRecentSearches] = useState([]);
+  const [activeGenre, setActiveGenre] = useState('all');
+  const [currentSong, setCurrentSong] = useState(null);
 
-  // Load saved data
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('mn_music_favorites');
-      const searches = localStorage.getItem('mn_music_searches');
-      if (saved) setFavorites(JSON.parse(saved));
-      if (searches) setRecentSearches(JSON.parse(searches));
-    } catch (e) {}
-  }, []);
+  // Filter songs
+  const filteredSongs = useMemo(() => {
+    return SONGS.filter(song => {
+      const matchesGenre = activeGenre === 'all' || song.genre === activeGenre;
+      const matchesSearch = !searchQuery || 
+        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        song.artist.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesGenre && matchesSearch;
+    });
+  }, [activeGenre, searchQuery]);
 
-  // Handle search
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setSearchSubmitted(searchQuery.trim());
-      
-      // Save to recent searches
-      const newSearches = [
-        searchQuery.trim(),
-        ...recentSearches.filter(s => s.toLowerCase() !== searchQuery.trim().toLowerCase())
-      ].slice(0, 10);
-      setRecentSearches(newSearches);
-      localStorage.setItem('mn_music_searches', JSON.stringify(newSearches));
-      
-      actions.addNotification(`Searching for "${searchQuery}"`, 'info');
-    }
-  };
-
-  // Quick search
-  const quickSearch = (term) => {
-    setSearchQuery(term);
-    setSearchSubmitted(term);
-    setActiveCategory('search');
-  };
-
-  // Play a playlist/track
-  const playTrack = (track) => {
-    setCurrentTrack(track);
-    actions.addNotification(`Now playing: ${track.name}`, 'success');
+  // Play song
+  const playSong = (song) => {
+    setCurrentSong(song);
+    actions.addNotification(`Now playing: ${song.title}`, 'success');
   };
 
   // Close player
   const closePlayer = () => {
-    setCurrentTrack(null);
+    setCurrentSong(null);
   };
-
-  // Get SoundCloud embed URL
-  const getSoundCloudEmbed = (url, autoplay = true) => {
-    return `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23d4af37&auto_play=${autoplay}&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`;
-  };
-
-  // Get SoundCloud search widget
-  const getSearchEmbed = (query) => {
-    // SoundCloud search URL
-    return `https://w.soundcloud.com/player/?url=https://soundcloud.com/search?q=${encodeURIComponent(query)}&color=%23d4af37&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false`;
-  };
-
-  // Popular search terms
-  const popularSearches = [
-    'Drake', 'Taylor Swift', 'The Weeknd', 'Bad Bunny', 
-    'Doja Cat', 'Post Malone', 'Travis Scott', 'SZA',
-    'Kendrick Lamar', 'Billie Eilish', 'Future', 'Lil Baby'
-  ];
 
   return (
-    <div className={`music-section ${currentTrack ? 'player-open' : ''}`}>
-      <h2 className="section-title">🎵 Music Hub</h2>
-      <p className="section-subtitle">Full songs play directly here - no account needed!</p>
+    <div className="music-page">
+      {/* Header */}
+      <div className="music-header">
+        <h1>🎵 Music</h1>
+        <p>Click any song to play - full songs, no previews</p>
+      </div>
 
-      {/* Category Tabs */}
-      <div className="category-tabs">
-        {CATEGORIES.map(cat => (
+      {/* Search */}
+      <div className="music-search">
+        <input
+          type="text"
+          placeholder="Search songs or artists..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
+      {/* Genre Filter */}
+      <div className="genre-tabs">
+        {GENRES.map(genre => (
           <button
-            key={cat.id}
-            className={`cat-tab ${activeCategory === cat.id ? 'active' : ''}`}
-            onClick={() => setActiveCategory(cat.id)}
+            key={genre.id}
+            className={activeGenre === genre.id ? 'active' : ''}
+            onClick={() => setActiveGenre(genre.id)}
           >
-            <span>{cat.icon}</span>
-            <span>{cat.name}</span>
+            {genre.icon} {genre.name}
           </button>
         ))}
       </div>
 
-      {/* Content */}
-      <div className="music-content">
-        
-        {/* Search Tab */}
-        {activeCategory === 'search' && (
-          <div className="search-section">
-            <form className="search-form" onSubmit={handleSearch}>
-              <div className="search-box">
-                <span className="search-icon">🔍</span>
-                <input
-                  type="text"
-                  placeholder="Search any song, artist, or album..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button type="submit">Search</button>
+      {/* Songs List */}
+      <div className="songs-list">
+        {filteredSongs.length > 0 ? (
+          filteredSongs.map((song, idx) => (
+            <div
+              key={song.id}
+              className={`song-row ${currentSong?.id === song.id ? 'playing' : ''}`}
+              onClick={() => playSong(song)}
+            >
+              <span className="song-num">{idx + 1}</span>
+              <div className="song-info">
+                <span className="song-title">{song.title}</span>
+                <span className="song-artist">{song.artist}</span>
               </div>
-            </form>
-
-            {/* Popular Searches */}
-            <div className="popular-searches">
-              <h4>🔥 Popular Searches</h4>
-              <div className="search-tags">
-                {popularSearches.map(term => (
-                  <button
-                    key={term}
-                    className="search-tag"
-                    onClick={() => quickSearch(term)}
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
+              <span className="play-icon">▶</span>
             </div>
-
-            {/* Recent Searches */}
-            {recentSearches.length > 0 && (
-              <div className="recent-searches">
-                <h4>🕐 Recent Searches</h4>
-                <div className="search-tags">
-                  {recentSearches.map((term, idx) => (
-                    <button
-                      key={idx}
-                      className="search-tag recent"
-                      onClick={() => quickSearch(term)}
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Search Results */}
-            {searchSubmitted && (
-              <div className="search-results">
-                <h3>Results for "{searchSubmitted}"</h3>
-                <p className="results-note">Click any song below to play the full track:</p>
-                <div className="soundcloud-search-embed">
-                  <iframe
-                    title={`Search: ${searchSubmitted}`}
-                    scrolling="no"
-                    frameBorder="no"
-                    allow="autoplay"
-                    src={`https://w.soundcloud.com/player/?url=https://soundcloud.com/search/sounds?q=${encodeURIComponent(searchSubmitted)}&color=%23d4af37&auto_play=false&hide_related=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=true&visual=true`}
-                  />
-                </div>
-                <div className="direct-search-links">
-                  <p>Or browse directly on SoundCloud:</p>
-                  <a 
-                    href={`https://soundcloud.com/search/sounds?q=${encodeURIComponent(searchSubmitted)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="sc-link"
-                  >
-                    🟠 Open Full Search on SoundCloud
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* No Search Yet */}
-            {!searchSubmitted && (
-              <div className="search-prompt">
-                <div className="prompt-icon">🎵</div>
-                <h3>Search for any song</h3>
-                <p>Type an artist name, song title, or album above</p>
-                <p className="highlight">✓ Full songs play - not 30 second previews!</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Charts Tab */}
-        {activeCategory === 'charts' && (
-          <div className="charts-section">
-            <h3>📊 Top Charts & Genres</h3>
-            <p className="section-note">Click to play full playlists</p>
-            <div className="playlist-grid">
-              {FEATURED_PLAYLISTS.map(playlist => (
-                <div 
-                  key={playlist.id}
-                  className={`playlist-card ${currentTrack?.id === playlist.id ? 'playing' : ''}`}
-                  onClick={() => playTrack(playlist)}
-                >
-                  <span className="card-icon">{playlist.icon}</span>
-                  <div className="card-info">
-                    <h4>{playlist.name}</h4>
-                    <p>{playlist.desc}</p>
-                  </div>
-                  {currentTrack?.id === playlist.id && (
-                    <span className="now-playing-badge">▶ Playing</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Moods Tab */}
-        {activeCategory === 'moods' && (
-          <div className="moods-section">
-            <h3>💫 Moods & Activities</h3>
-            <p className="section-note">Music for every moment</p>
-            <div className="playlist-grid">
-              {MOOD_PLAYLISTS.map(playlist => (
-                <div 
-                  key={playlist.id}
-                  className={`playlist-card ${currentTrack?.id === playlist.id ? 'playing' : ''}`}
-                  onClick={() => playTrack(playlist)}
-                >
-                  <span className="card-icon">{playlist.icon}</span>
-                  <div className="card-info">
-                    <h4>{playlist.name}</h4>
-                    <p>{playlist.desc}</p>
-                  </div>
-                  {currentTrack?.id === playlist.id && (
-                    <span className="now-playing-badge">▶ Playing</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Artists Tab */}
-        {activeCategory === 'artists' && (
-          <div className="artists-section">
-            <h3>🎤 Popular Artists</h3>
-            <p className="section-note">Click to see their music</p>
-            <div className="artist-grid">
-              {POPULAR_ARTISTS.map(artist => (
-                <div 
-                  key={artist.name}
-                  className="artist-card"
-                  onClick={() => playTrack({ ...artist, id: artist.name, desc: 'Artist profile' })}
-                >
-                  <span className="artist-icon">{artist.icon}</span>
-                  <span className="artist-name">{artist.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Artist Search */}
-            <div className="artist-search">
-              <h4>🔍 Search for more artists</h4>
-              <div className="quick-search-grid">
-                {['Ariana Grande', 'Ed Sheeran', 'BTS', 'Dua Lipa', 'Bad Bunny', 'Rihanna'].map(name => (
-                  <button 
-                    key={name}
-                    className="quick-search-btn"
-                    onClick={() => quickSearch(name)}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            </div>
+          ))
+        ) : (
+          <div className="no-results">
+            <p>No songs found for "{searchQuery}"</p>
           </div>
         )}
       </div>
 
-      {/* Full-Width Music Player */}
-      {currentTrack && (
-        <div className="music-player-bar">
+      {/* Player */}
+      {currentSong && (
+        <div className="music-player">
           <div className="player-header">
-            <div className="now-playing-info">
-              <span className="np-icon">{currentTrack.icon}</span>
-              <div className="np-text">
-                <span className="np-name">{currentTrack.name}</span>
-                <span className="np-desc">{currentTrack.desc}</span>
-              </div>
+            <div className="player-info">
+              <span className="player-title">{currentSong.title}</span>
+              <span className="player-artist">{currentSong.artist}</span>
             </div>
-            <div className="player-controls">
-              <span className="full-song-badge">🎵 Full Songs</span>
-              <button className="close-btn" onClick={closePlayer}>✕ Close</button>
-            </div>
+            <button onClick={closePlayer}>✕ Close</button>
           </div>
-          
-          <div className="player-embed">
+          <div className="player-video">
             <iframe
-              title={currentTrack.name}
-              scrolling="no"
-              frameBorder="no"
-              allow="autoplay"
-              src={getSoundCloudEmbed(currentTrack.url, true)}
+              src={`https://www.youtube.com/embed/${currentSong.ytId}?autoplay=1&rel=0`}
+              title={currentSong.title}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
           </div>
         </div>

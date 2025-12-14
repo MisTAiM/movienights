@@ -1,6 +1,6 @@
 /* ========================================
    MusicSection.jsx - Music Hub
-   YouTube embeds - Full songs play directly
+   Search shows list of results first
    ======================================== */
 
 import React, { useState, useMemo } from 'react';
@@ -8,8 +8,7 @@ import { useApp } from '../../context/AppContext';
 import './MusicSection.css';
 
 // ============================================
-// VERIFIED YOUTUBE VIDEO IDS
-// All tested and working - full songs
+// VERIFIED YOUTUBE VIDEO IDS - Curated Songs
 // ============================================
 
 const SONGS = [
@@ -77,49 +76,111 @@ const GENRES = [
   { id: 'latin', name: 'Latin', icon: '🌴' },
 ];
 
+// Invidious instances for search API
+const API_INSTANCES = [
+  'https://inv.nadeko.net',
+  'https://invidious.nerdvpn.de',
+  'https://vid.puffyan.us',
+  'https://invidious.privacyredirect.com',
+];
+
 function MusicSection() {
   const { actions } = useApp();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchSubmitted, setSearchSubmitted] = useState('');
   const [activeGenre, setActiveGenre] = useState('all');
   const [currentSong, setCurrentSong] = useState(null);
-  const [showSearch, setShowSearch] = useState(false);
+  
+  // Search state
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchError, setSearchError] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Filter songs from curated list
+  // Filter curated songs
   const filteredSongs = useMemo(() => {
-    if (showSearch) return []; // Hide list when searching
     return SONGS.filter(song => {
       const matchesGenre = activeGenre === 'all' || song.genre === activeGenre;
-      const matchesSearch = !searchQuery || 
-        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesGenre && matchesSearch;
+      return matchesGenre;
     });
-  }, [activeGenre, searchQuery, showSearch]);
+  }, [activeGenre]);
 
-  // Handle search submit
-  const handleSearch = (e) => {
+  // Format duration
+  const formatDuration = (seconds) => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Search for songs using Invidious API
+  const handleSearch = async (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      setSearchSubmitted(searchQuery.trim());
-      setShowSearch(true);
-      setCurrentSong(null);
-      actions.addNotification(`Searching for "${searchQuery}"`, 'info');
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+    setHasSearched(true);
+    setCurrentSong(null);
+
+    const query = `${searchQuery} music`;
+
+    // Try each API instance
+    for (const instance of API_INSTANCES) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const response = await fetch(
+          `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
+          { signal: controller.signal }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) continue;
+
+        const data = await response.json();
+
+        if (data && Array.isArray(data) && data.length > 0) {
+          const results = data.slice(0, 20).map(item => ({
+            id: item.videoId,
+            ytId: item.videoId,
+            title: item.title,
+            artist: item.author,
+            duration: formatDuration(item.lengthSeconds),
+            thumbnail: `https://i.ytimg.com/vi/${item.videoId}/mqdefault.jpg`,
+            views: item.viewCount,
+          }));
+
+          setSearchResults(results);
+          setIsSearching(false);
+          actions.addNotification(`Found ${results.length} results`, 'success');
+          return;
+        }
+      } catch (err) {
+        console.log(`API ${instance} failed:`, err.message);
+        continue;
+      }
     }
+
+    // All APIs failed
+    setSearchError('Could not fetch results. Please try again.');
+    setSearchResults([]);
+    setIsSearching(false);
   };
 
-  // Clear search and go back to list
+  // Clear search
   const clearSearch = () => {
-    setShowSearch(false);
-    setSearchSubmitted('');
+    setSearchResults([]);
     setSearchQuery('');
+    setHasSearched(false);
+    setSearchError(null);
   };
 
-  // Play song from curated list
+  // Play a song
   const playSong = (song) => {
     setCurrentSong(song);
-    setShowSearch(false);
     actions.addNotification(`Now playing: ${song.title}`, 'success');
   };
 
@@ -136,60 +197,101 @@ function MusicSection() {
         <p>Search for any song or browse popular tracks</p>
       </div>
 
-      {/* Search */}
+      {/* Search Form */}
       <form className="music-search" onSubmit={handleSearch}>
         <input
           type="text"
-          placeholder="Search any song, artist, album..."
+          placeholder="Search any song or artist..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button type="submit">Search</button>
+        <button type="submit" disabled={isSearching}>
+          {isSearching ? 'Searching...' : 'Search'}
+        </button>
       </form>
 
-      {/* Search Results - YouTube Embed */}
-      {showSearch && searchSubmitted && (
-        <div className="search-results">
+      {/* Search Results */}
+      {hasSearched && (
+        <div className="search-results-section">
           <div className="search-results-header">
-            <h2>Results for "{searchSubmitted}"</h2>
-            <button className="back-btn" onClick={clearSearch}>← Back to List</button>
+            <h2>Results for "{searchQuery}"</h2>
+            <button className="clear-btn" onClick={clearSearch}>✕ Clear</button>
           </div>
-          <p className="search-hint">Click any video below to play full song:</p>
-          <div className="youtube-search-embed">
-            <iframe
-              src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(searchSubmitted + ' official audio')}`}
-              title={`Search: ${searchSubmitted}`}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+
+          {/* Loading */}
+          {isSearching && (
+            <div className="loading">
+              <div className="spinner"></div>
+              <p>Searching...</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {searchError && !isSearching && (
+            <div className="search-error">
+              <p>{searchError}</p>
+              <button onClick={handleSearch}>Try Again</button>
+            </div>
+          )}
+
+          {/* Results List */}
+          {!isSearching && searchResults.length > 0 && (
+            <div className="results-list">
+              {searchResults.map((song, idx) => (
+                <div
+                  key={song.id}
+                  className={`result-row ${currentSong?.ytId === song.ytId ? 'playing' : ''}`}
+                  onClick={() => playSong(song)}
+                >
+                  <span className="result-num">{idx + 1}</span>
+                  <img 
+                    src={song.thumbnail} 
+                    alt="" 
+                    className="result-thumb"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="result-info">
+                    <span className="result-title">{song.title}</span>
+                    <span className="result-artist">{song.artist}</span>
+                  </div>
+                  <span className="result-duration">{song.duration}</span>
+                  <span className="play-icon">▶</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* No Results */}
+          {!isSearching && !searchError && searchResults.length === 0 && (
+            <div className="no-results">
+              <p>No results found for "{searchQuery}"</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Genre Filter - only show when not searching */}
-      {!showSearch && (
-        <div className="genre-tabs">
-          {GENRES.map(genre => (
-            <button
-              key={genre.id}
-              className={activeGenre === genre.id ? 'active' : ''}
-              onClick={() => setActiveGenre(genre.id)}
-            >
-              {genre.icon} {genre.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Browse Section - only show when not searching */}
+      {!hasSearched && (
+        <>
+          {/* Genre Tabs */}
+          <div className="genre-tabs">
+            {GENRES.map(genre => (
+              <button
+                key={genre.id}
+                className={activeGenre === genre.id ? 'active' : ''}
+                onClick={() => setActiveGenre(genre.id)}
+              >
+                {genre.icon} {genre.name}
+              </button>
+            ))}
+          </div>
 
-      {/* Songs List - only show when not searching */}
-      {!showSearch && (
-        <div className="songs-list">
-          {filteredSongs.length > 0 ? (
-            filteredSongs.map((song, idx) => (
+          {/* Curated Songs List */}
+          <div className="songs-list">
+            {filteredSongs.map((song, idx) => (
               <div
                 key={song.id}
-                className={`song-row ${currentSong?.id === song.id ? 'playing' : ''}`}
+                className={`song-row ${currentSong?.ytId === song.ytId ? 'playing' : ''}`}
                 onClick={() => playSong(song)}
               >
                 <span className="song-num">{idx + 1}</span>
@@ -199,25 +301,13 @@ function MusicSection() {
                 </div>
                 <span className="play-icon">▶</span>
               </div>
-            ))
-          ) : (
-            <div className="no-results">
-              <p>No songs found matching "{searchQuery}"</p>
-              {searchQuery && (
-                <button className="search-instead" onClick={() => {
-                  setSearchSubmitted(searchQuery);
-                  setShowSearch(true);
-                }}>
-                  Search YouTube for "{searchQuery}"
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Player - for curated songs */}
-      {currentSong && !showSearch && (
+      {/* Player */}
+      {currentSong && (
         <div className="music-player">
           <div className="player-header">
             <div className="player-info">

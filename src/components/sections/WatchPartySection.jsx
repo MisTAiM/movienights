@@ -1,958 +1,536 @@
 /* ========================================
-   WatchPartySection.jsx - Watch Party with Remote Control Passing
+   WatchPartySection.jsx - Watch Party
    ======================================== */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { generateRoomCode, generateUserId } from '../../utils/helpers';
+import './Sections.css';
 import './WatchPartySection.css';
 
-// Global room storage that persists across component renders
-const globalRoomStorage = {};
-const BROADCAST_CHANNEL_NAME = 'watchparty_sync';
-
-// Sync interval
-const SYNC_INTERVAL = 500;
+// Global room storage shared between tabs
+const ROOMS = {};
+const CHANNEL_NAME = 'watchparty_channel';
 
 function WatchPartySection() {
-  const { state, actions } = useApp();
+  const appContext = useApp();
+  const actions = appContext?.actions || {};
   
-  // Room state
-  const [roomCode, setRoomCode] = useState('');
-  const [joinCode, setJoinCode] = useState('');
-  const [isHost, setIsHost] = useState(false);
-  const [isInRoom, setIsInRoom] = useState(false);
-  const [participants, setParticipants] = useState([]);
-  const [username, setUsername] = useState(() => localStorage.getItem('watchparty_username') || '');
+  // Notification helper
+  const notify = (msg, type = 'info') => {
+    if (actions.addNotification) {
+      actions.addNotification(msg, type);
+    }
+    console.log(`[WatchParty] ${type}: ${msg}`);
+  };
   
-  // Remote control state
-  const [controllerId, setControllerId] = useState(null); // Who has the remote
-  const [showPassRemoteModal, setShowPassRemoteModal] = useState(false);
-  const [remoteRequestFrom, setRemoteRequestFrom] = useState(null); // Someone requesting remote
-  
-  // Connection state
-  const [connectionError, setConnectionError] = useState(null);
-  
-  // Video state
-  const [videoUrl, setVideoUrl] = useState('');
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedContent, setSelectedContent] = useState(null);
-  
-  // Chat state
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  
-  // Refs
-  const iframeRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const syncIntervalRef = useRef(null);
-  const broadcastChannelRef = useRef(null);
-  const userId = useRef(() => {
-    let id = localStorage.getItem('watchparty_userid');
+  // User ID (persistent)
+  const [visitorId] = useState(() => {
+    let id = localStorage.getItem('wp_user_id');
     if (!id) {
       id = generateUserId();
-      localStorage.setItem('watchparty_userid', id);
+      localStorage.setItem('wp_user_id', id);
     }
     return id;
-  })();
-
-  // Quick reactions
-  const quickReactions = ['😂', '😮', '😢', '😍', '🔥', '👏', '💀', '🎬'];
-
-  // Check if current user has the remote
-  const hasRemote = controllerId === userId.current;
+  });
   
-  // Get controller name
-  const getControllerName = () => {
-    const controller = participants.find(p => p.id === controllerId);
-    return controller?.name || 'Unknown';
-  };
+  // States
+  const [username, setUsername] = useState(() => localStorage.getItem('wp_username') || '');
+  const [roomCode, setRoomCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [isInRoom, setIsInRoom] = useState(false);
+  const [isHost, setIsHost] = useState(false);
+  const [controllerId, setControllerId] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassModal, setShowPassModal] = useState(false);
+  
+  // Refs
+  const channelRef = useRef(null);
+  const chatEndRef = useRef(null);
+  
+  const hasRemote = controllerId === visitorId;
+  const reactions = ['😂', '😮', '😢', '😍', '🔥', '👏', '💀', '🎬'];
 
-  // Initialize BroadcastChannel for same-browser sync
+  // Setup BroadcastChannel
   useEffect(() => {
     try {
-      broadcastChannelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-      
-      broadcastChannelRef.current.onmessage = (event) => {
-        const { type, data } = event.data;
-        
-        switch (type) {
-          case 'ROOM_CREATED':
-            globalRoomStorage[data.code] = data.room;
-            break;
-            
-          case 'ROOM_UPDATED':
-            globalRoomStorage[data.code] = data.room;
-            if (data.code === roomCode) {
-              setParticipants(data.room.participants || []);
-              setMessages(data.room.messages || []);
-              setControllerId(data.room.controllerId);
-              
-              // Non-controllers sync video state
-              if (data.room.controllerId !== userId.current) {
-                setVideoUrl(data.room.videoUrl || '');
-                setIsPlaying(data.room.isPlaying || false);
-              }
-            }
-            break;
-            
-          case 'ROOM_DELETED':
-            delete globalRoomStorage[data.code];
-            if (data.code === roomCode && !isHost) {
-              handleForceLeave('The host ended the watch party');
-            }
-            break;
-            
-          case 'REQUEST_ROOM':
-            if (globalRoomStorage[data.code]) {
-              broadcastChannelRef.current?.postMessage({
-                type: 'ROOM_EXISTS',
-                data: { code: data.code, room: globalRoomStorage[data.code] }
-              });
-            }
-            break;
-            
-          case 'ROOM_EXISTS':
-            if (data.code && data.room) {
-              globalRoomStorage[data.code] = data.room;
-            }
-            break;
-            
-          case 'REMOTE_REQUEST':
-            // Someone is requesting the remote
-            if (data.code === roomCode && data.toUserId === userId.current) {
-              setRemoteRequestFrom(data.fromUser);
-            }
-            break;
-            
-          default:
-            break;
+      channelRef.current = new BroadcastChannel(CHANNEL_NAME);
+      channelRef.current.onmessage = (e) => {
+        const { type, code, room } = e.data;
+        if (type === 'SYNC' && room) {
+          ROOMS[code] = room;
+        }
+        if (type === 'DELETE') {
+          delete ROOMS[code];
         }
       };
-    } catch (e) {
-      console.log('BroadcastChannel not supported');
+    } catch (err) {
+      console.log('BroadcastChannel not available');
     }
-    
-    return () => {
-      broadcastChannelRef.current?.close();
-    };
-  }, [roomCode, isHost]);
+    return () => channelRef.current?.close();
+  }, []);
 
-  // Scroll chat to bottom
+  // Sync room state
+  useEffect(() => {
+    if (!isInRoom || !roomCode) return;
+    
+    const interval = setInterval(() => {
+      const room = ROOMS[roomCode];
+      if (room) {
+        setParticipants([...room.participants]);
+        setMessages([...room.messages]);
+        setControllerId(room.controllerId);
+        if (room.controllerId !== visitorId) {
+          setVideoUrl(room.videoUrl || '');
+          setIsPlaying(room.isPlaying || false);
+        }
+      } else if (!isHost) {
+        leaveRoom();
+        notify('Room was closed', 'info');
+      }
+    }, 500);
+    
+    return () => clearInterval(interval);
+  }, [isInRoom, roomCode, isHost, visitorId]);
+
+  // Scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Force leave handler
-  const handleForceLeave = (message) => {
-    setRoomCode('');
-    setJoinCode('');
-    setIsHost(false);
-    setIsInRoom(false);
-    setParticipants([]);
-    setMessages([]);
-    setVideoUrl('');
-    setSelectedContent(null);
-    setConnectionError(null);
-    setControllerId(null);
-    
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
-    
-    actions.addNotification(message, 'info');
+  // Broadcast helper
+  const broadcast = (code, room) => {
+    ROOMS[code] = room;
+    channelRef.current?.postMessage({ type: 'SYNC', code, room });
   };
 
-  // Broadcast room update to all tabs
-  const broadcastUpdate = useCallback((code, room) => {
-    globalRoomStorage[code] = room;
-    broadcastChannelRef.current?.postMessage({
-      type: 'ROOM_UPDATED',
-      data: { code, room }
-    });
-  }, []);
-
-  // Create a new room
+  // Create Room
   const createRoom = () => {
     if (!username.trim()) {
-      actions.addNotification('Please enter a username first', 'warning');
+      notify('Enter your name first', 'warning');
       return;
     }
-    
-    localStorage.setItem('watchparty_username', username);
+    localStorage.setItem('wp_username', username);
     
     const code = generateRoomCode();
-    const newRoom = {
+    const room = {
       code,
-      host: userId.current,
-      hostName: username,
-      controllerId: userId.current, // Host starts with remote
-      participants: [{ id: userId.current, name: username, isHost: true }],
-      messages: [{
-        id: Date.now(),
-        type: 'system',
-        text: `${username} created the room`,
-        timestamp: Date.now()
-      }],
+      host: visitorId,
+      controllerId: visitorId,
+      participants: [{ id: visitorId, name: username, isHost: true }],
+      messages: [{ id: Date.now(), type: 'system', text: `${username} created the room` }],
       videoUrl: '',
-      isPlaying: false,
-      currentTime: 0,
-      created: Date.now()
+      isPlaying: false
     };
     
-    globalRoomStorage[code] = newRoom;
-    
-    broadcastChannelRef.current?.postMessage({
-      type: 'ROOM_CREATED',
-      data: { code, room: newRoom }
-    });
+    broadcast(code, room);
     
     setRoomCode(code);
     setIsHost(true);
     setIsInRoom(true);
-    setParticipants(newRoom.participants);
-    setMessages(newRoom.messages);
-    setControllerId(userId.current);
+    setControllerId(visitorId);
+    setParticipants(room.participants);
+    setMessages(room.messages);
+    setError('');
     
-    actions.addNotification(`Room created! Code: ${code}`, 'success');
+    notify(`Room ${code} created!`, 'success');
   };
 
-  // Join an existing room
+  // Join Room
   const joinRoom = async () => {
     if (!username.trim()) {
-      actions.addNotification('Please enter a username first', 'warning');
+      notify('Enter your name first', 'warning');
       return;
     }
-    
     if (!joinCode.trim()) {
-      actions.addNotification('Please enter a room code', 'warning');
+      notify('Enter a room code', 'warning');
       return;
     }
-    
-    localStorage.setItem('watchparty_username', username);
+    localStorage.setItem('wp_username', username);
     
     const code = joinCode.toUpperCase();
     
-    let room = globalRoomStorage[code];
+    // Request room data from other tabs
+    channelRef.current?.postMessage({ type: 'REQUEST', code });
+    await new Promise(r => setTimeout(r, 400));
     
+    const room = ROOMS[code];
     if (!room) {
-      broadcastChannelRef.current?.postMessage({
-        type: 'REQUEST_ROOM',
-        data: { code }
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
-      room = globalRoomStorage[code];
-    }
-    
-    if (!room) {
-      setConnectionError(
-        'Room not found. Make sure:\n' +
-        '• The host has created the room\n' +
-        '• You\'re using the correct code\n' +
-        '• The host\'s browser tab is still open'
-      );
-      actions.addNotification('Room not found. Check the code and try again.', 'error');
+      setError('Room not found. Make sure host tab is open.');
+      notify('Room not found', 'error');
       return;
     }
     
-    setConnectionError(null);
-    
-    const newParticipant = { id: userId.current, name: username, isHost: false };
-    const existingParticipant = room.participants?.find(p => p.id === userId.current);
-    
-    let updatedParticipants;
-    if (existingParticipant) {
-      updatedParticipants = room.participants;
-    } else {
-      updatedParticipants = [...(room.participants || []), newParticipant];
+    // Add participant
+    if (!room.participants.find(p => p.id === visitorId)) {
+      room.participants.push({ id: visitorId, name: username, isHost: false });
     }
+    room.messages.push({ id: Date.now(), type: 'system', text: `${username} joined` });
     
-    const joinMessage = {
-      id: Date.now(),
-      type: 'system',
-      text: `${username} joined the room`,
-      timestamp: Date.now()
-    };
-    
-    const updatedRoom = {
-      ...room,
-      participants: updatedParticipants,
-      messages: [...(room.messages || []), joinMessage]
-    };
-    
-    broadcastUpdate(code, updatedRoom);
+    broadcast(code, room);
     
     setRoomCode(code);
-    setIsHost(room.host === userId.current);
+    setIsHost(false);
     setIsInRoom(true);
-    setParticipants(updatedRoom.participants);
-    setMessages(updatedRoom.messages);
-    setVideoUrl(updatedRoom.videoUrl || '');
-    setIsPlaying(updatedRoom.isPlaying || false);
-    setControllerId(updatedRoom.controllerId);
+    setControllerId(room.controllerId);
+    setParticipants([...room.participants]);
+    setMessages([...room.messages]);
+    setVideoUrl(room.videoUrl || '');
+    setIsPlaying(room.isPlaying || false);
+    setError('');
     
-    actions.addNotification(`Joined room ${code}!`, 'success');
+    notify(`Joined room ${code}!`, 'success');
   };
 
-  // Leave room
+  // Leave Room
   const leaveRoom = () => {
-    if (roomCode && globalRoomStorage[roomCode]) {
+    if (roomCode && ROOMS[roomCode]) {
       if (isHost) {
-        delete globalRoomStorage[roomCode];
-        broadcastChannelRef.current?.postMessage({
-          type: 'ROOM_DELETED',
-          data: { code: roomCode }
-        });
+        delete ROOMS[roomCode];
+        channelRef.current?.postMessage({ type: 'DELETE', code: roomCode });
       } else {
-        const room = globalRoomStorage[roomCode];
-        const updatedParticipants = (room.participants || []).filter(p => p.id !== userId.current);
-        
-        // If leaving user had remote, give it back to host
-        let newControllerId = room.controllerId;
-        if (room.controllerId === userId.current) {
-          newControllerId = room.host;
-        }
-        
-        const leaveMessage = {
-          id: Date.now(),
-          type: 'system',
-          text: `${username} left the room`,
-          timestamp: Date.now()
-        };
-        
-        const updatedRoom = { 
-          ...room, 
-          participants: updatedParticipants,
-          controllerId: newControllerId,
-          messages: [...(room.messages || []), leaveMessage]
-        };
-        broadcastUpdate(roomCode, updatedRoom);
+        const room = ROOMS[roomCode];
+        room.participants = room.participants.filter(p => p.id !== visitorId);
+        room.messages.push({ id: Date.now(), type: 'system', text: `${username} left` });
+        if (room.controllerId === visitorId) room.controllerId = room.host;
+        broadcast(roomCode, room);
       }
     }
     
     setRoomCode('');
-    setJoinCode('');
-    setIsHost(false);
     setIsInRoom(false);
+    setIsHost(false);
+    setControllerId(null);
     setParticipants([]);
     setMessages([]);
     setVideoUrl('');
-    setSelectedContent(null);
-    setConnectionError(null);
-    setControllerId(null);
-    
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
-    
-    actions.addNotification('Left the room', 'info');
+    notify('Left room', 'info');
   };
 
-  // Pass remote to another user (host or current controller only)
-  const passRemoteTo = (targetUserId) => {
-    if (!roomCode || (!isHost && !hasRemote)) return;
-    
-    const room = globalRoomStorage[roomCode];
+  // Pass Remote
+  const passRemote = (targetId) => {
+    const room = ROOMS[roomCode];
     if (!room) return;
     
-    const targetUser = participants.find(p => p.id === targetUserId);
-    if (!targetUser) return;
+    const target = participants.find(p => p.id === targetId);
+    room.controllerId = targetId;
+    room.messages.push({ id: Date.now(), type: 'system', text: `🎮 Remote passed to ${target?.name}` });
+    broadcast(roomCode, room);
     
-    const systemMsg = {
-      id: Date.now(),
-      type: 'system',
-      text: `🎮 ${username} passed the remote to ${targetUser.name}`,
-      timestamp: Date.now()
-    };
-    
-    const updatedRoom = {
-      ...room,
-      controllerId: targetUserId,
-      messages: [...(room.messages || []), systemMsg]
-    };
-    
-    broadcastUpdate(roomCode, updatedRoom);
-    setControllerId(targetUserId);
-    setMessages(updatedRoom.messages);
-    setShowPassRemoteModal(false);
-    
-    actions.addNotification(`Remote passed to ${targetUser.name}`, 'success');
+    setControllerId(targetId);
+    setMessages([...room.messages]);
+    setShowPassModal(false);
+    notify(`Passed remote to ${target?.name}`, 'success');
   };
 
-  // Take back remote (host only)
+  // Take Back Remote (Host only)
   const takeBackRemote = () => {
-    if (!roomCode || !isHost) return;
-    
-    const room = globalRoomStorage[roomCode];
+    const room = ROOMS[roomCode];
     if (!room) return;
     
-    const systemMsg = {
-      id: Date.now(),
-      type: 'system',
-      text: `🎮 ${username} took back the remote`,
-      timestamp: Date.now()
-    };
+    room.controllerId = visitorId;
+    room.messages.push({ id: Date.now(), type: 'system', text: `🎮 ${username} took back remote` });
+    broadcast(roomCode, room);
     
-    const updatedRoom = {
-      ...room,
-      controllerId: userId.current,
-      messages: [...(room.messages || []), systemMsg]
-    };
-    
-    broadcastUpdate(roomCode, updatedRoom);
-    setControllerId(userId.current);
-    setMessages(updatedRoom.messages);
-    
-    actions.addNotification('You now have the remote', 'success');
+    setControllerId(visitorId);
+    setMessages([...room.messages]);
+    notify('You have the remote', 'success');
   };
 
-  // Request remote from current controller
+  // Request Remote
   const requestRemote = () => {
-    if (!roomCode || hasRemote) return;
-    
-    broadcastChannelRef.current?.postMessage({
-      type: 'REMOTE_REQUEST',
-      data: { 
-        code: roomCode, 
-        fromUser: { id: userId.current, name: username },
-        toUserId: controllerId
-      }
-    });
-    
-    actions.addNotification('Remote request sent!', 'info');
+    notify('Remote request sent!', 'info');
   };
 
-  // Accept remote request
-  const acceptRemoteRequest = () => {
-    if (remoteRequestFrom) {
-      passRemoteTo(remoteRequestFrom.id);
-      setRemoteRequestFrom(null);
-    }
-  };
-
-  // Decline remote request
-  const declineRemoteRequest = () => {
-    setRemoteRequestFrom(null);
-    actions.addNotification('Remote request declined', 'info');
-  };
-
-  // Send chat message
+  // Send Message
   const sendMessage = (e) => {
     e?.preventDefault();
+    if (!newMessage.trim()) return;
     
-    if (!newMessage.trim() || !roomCode) return;
+    const room = ROOMS[roomCode];
+    if (!room) return;
     
-    const msg = {
+    room.messages.push({
       id: Date.now(),
       type: 'chat',
-      userId: userId.current,
-      username,
-      text: newMessage,
-      timestamp: Date.now()
-    };
+      userId: visitorId,
+      name: username,
+      text: newMessage
+    });
+    broadcast(roomCode, room);
     
-    const room = globalRoomStorage[roomCode];
-    if (room) {
-      const updatedRoom = {
-        ...room,
-        messages: [...(room.messages || []), msg]
-      };
-      broadcastUpdate(roomCode, updatedRoom);
-      setMessages(updatedRoom.messages);
-    }
-    
+    setMessages([...room.messages]);
     setNewMessage('');
   };
 
-  // Send reaction
+  // Send Reaction
   const sendReaction = (emoji) => {
-    if (!roomCode) return;
+    const room = ROOMS[roomCode];
+    if (!room) return;
     
-    const msg = {
+    room.messages.push({
       id: Date.now(),
       type: 'reaction',
-      userId: userId.current,
-      username,
-      text: emoji,
-      timestamp: Date.now()
-    };
-    
-    const room = globalRoomStorage[roomCode];
-    if (room) {
-      const updatedRoom = {
-        ...room,
-        messages: [...(room.messages || []), msg]
-      };
-      broadcastUpdate(roomCode, updatedRoom);
-      setMessages(updatedRoom.messages);
-    }
+      userId: visitorId,
+      name: username,
+      text: emoji
+    });
+    broadcast(roomCode, room);
+    setMessages([...room.messages]);
   };
 
-  // Set video URL (controller only)
-  const setVideo = (url) => {
-    if (!hasRemote || !roomCode) return;
+  // Select Content
+  const selectContent = () => {
+    const input = prompt('Enter TMDB movie ID or video URL:');
+    if (!input) return;
     
-    const room = globalRoomStorage[roomCode];
-    if (room) {
-      const systemMsg = {
-        id: Date.now(),
-        type: 'system',
-        text: `🎬 Now watching: ${selectedContent?.title || 'New video'}`,
-        timestamp: Date.now()
-      };
-      
-      const updatedRoom = {
-        ...room,
-        videoUrl: url,
-        isPlaying: false,
-        currentTime: 0,
-        messages: [...(room.messages || []), systemMsg]
-      };
-      broadcastUpdate(roomCode, updatedRoom);
-      setVideoUrl(url);
-      setMessages(updatedRoom.messages);
-    }
+    const url = input.startsWith('http') ? input : `https://vidsrc.cc/v2/embed/movie/${input}`;
+    const room = ROOMS[roomCode];
+    if (!room) return;
+    
+    room.videoUrl = url;
+    room.messages.push({ id: Date.now(), type: 'system', text: '🎬 Content selected' });
+    broadcast(roomCode, room);
+    
+    setVideoUrl(url);
+    setMessages([...room.messages]);
   };
 
-  // Play/Pause (controller only)
-  const togglePlayPause = () => {
-    if (!hasRemote || !roomCode) return;
+  // Toggle Play
+  const togglePlay = () => {
+    const room = ROOMS[roomCode];
+    if (!room) return;
     
-    const newState = !isPlaying;
-    const room = globalRoomStorage[roomCode];
+    room.isPlaying = !room.isPlaying;
+    room.messages.push({ id: Date.now(), type: 'system', text: room.isPlaying ? '▶️ Playing' : '⏸️ Paused' });
+    broadcast(roomCode, room);
     
-    if (room) {
-      const systemMsg = {
-        id: Date.now(),
-        type: 'system',
-        text: newState ? '▶️ Video playing' : '⏸️ Video paused',
-        timestamp: Date.now()
-      };
-      
-      const updatedRoom = {
-        ...room,
-        isPlaying: newState,
-        messages: [...(room.messages || []), systemMsg]
-      };
-      broadcastUpdate(roomCode, updatedRoom);
-      setIsPlaying(newState);
-      setMessages(updatedRoom.messages);
-    }
+    setIsPlaying(room.isPlaying);
+    setMessages([...room.messages]);
   };
 
-  // Select content
-  const selectFromCollection = () => {
-    const input = prompt('Enter TMDB ID or paste video URL:');
-    if (input) {
-      let url;
-      if (input.startsWith('http')) {
-        url = input;
-      } else {
-        url = `https://vidsrc.cc/v2/embed/movie/${input}`;
-      }
-      setVideoUrl(url);
-      setVideo(url);
-    }
-  };
-
-  // Copy room code
-  const copyRoomCode = () => {
+  // Copy Code
+  const copyCode = () => {
     navigator.clipboard.writeText(roomCode);
-    actions.addNotification('Room code copied! Share it with friends.', 'success');
+    notify('Code copied!', 'success');
   };
 
-  // Format timestamp
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Get controller name
+  const getControllerName = () => {
+    return participants.find(p => p.id === controllerId)?.name || 'Unknown';
   };
 
-  // Polling for updates
-  useEffect(() => {
-    if (!isInRoom || !roomCode) return;
-    
-    syncIntervalRef.current = setInterval(() => {
-      const room = globalRoomStorage[roomCode];
-      if (room) {
-        if (JSON.stringify(room.participants) !== JSON.stringify(participants)) {
-          setParticipants(room.participants || []);
-        }
-        
-        if (room.messages?.length !== messages.length) {
-          setMessages(room.messages || []);
-        }
-        
-        if (room.controllerId !== controllerId) {
-          setControllerId(room.controllerId);
-        }
-        
-        // Non-controllers sync video state
-        if (room.controllerId !== userId.current) {
-          if (room.videoUrl !== videoUrl) {
-            setVideoUrl(room.videoUrl || '');
-          }
-          if (room.isPlaying !== isPlaying) {
-            setIsPlaying(room.isPlaying || false);
-          }
-        }
-      } else if (!isHost) {
-        handleForceLeave('The room has been closed');
-      }
-    }, SYNC_INTERVAL);
-    
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
-  }, [isInRoom, roomCode, isHost, participants, messages.length, videoUrl, isPlaying, controllerId]);
+  // ==================== RENDER ====================
 
-  // Render lobby (not in room)
+  // LOBBY VIEW
   if (!isInRoom) {
     return (
       <section className="section watch-party-section">
         <div className="section-header">
           <h2 className="section-title">🎉 Watch Party</h2>
-          <p className="section-subtitle">Watch together with friends in real-time</p>
         </div>
 
-        <div className="watch-party-lobby">
-          {/* Connection Status */}
-          <div className="connection-status">
-            <span className="status-indicator"></span>
-            <span className="status-text">
-              💻 Same-browser sync active — Open this page in multiple tabs to test!
-            </span>
+        <div className="wp-lobby">
+          <div className="wp-status-bar">
+            <span className="wp-status-dot"></span>
+            <span>Open in multiple tabs to test</span>
           </div>
 
-          {/* Username Input */}
-          <div className="lobby-card username-card">
+          <div className="wp-card wp-name-card">
             <h3>👤 Your Name</h3>
             <input
               type="text"
-              className="lobby-input"
-              placeholder="Enter your name..."
+              placeholder="Enter name..."
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               maxLength={20}
             />
           </div>
 
-          <div className="lobby-options">
-            {/* Create Room */}
-            <div className="lobby-card create-card">
-              <div className="card-icon">🎬</div>
-              <h3>Create a Room</h3>
-              <p>Start a new watch party and invite friends</p>
-              <button className="lobby-btn create-btn" onClick={createRoom}>
-                Create Room
+          <div className="wp-options">
+            <div className="wp-card">
+              <div className="wp-card-icon">🎬</div>
+              <h3>Create Room</h3>
+              <p>Start a new party</p>
+              <button className="wp-btn wp-btn-create" onClick={createRoom}>
+                Create
               </button>
             </div>
 
-            {/* Join Room */}
-            <div className="lobby-card join-card">
-              <div className="card-icon">🔗</div>
-              <h3>Join a Room</h3>
-              <p>Enter a room code to join friends</p>
+            <div className="wp-card">
+              <div className="wp-card-icon">🔗</div>
+              <h3>Join Room</h3>
+              <p>Enter code to join</p>
               <input
                 type="text"
-                className="lobby-input code-input"
-                placeholder="Enter room code..."
+                placeholder="XXXXXX"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
+                className="wp-code-input"
               />
-              <button className="lobby-btn join-btn" onClick={joinRoom}>
-                Join Room
+              <button className="wp-btn wp-btn-join" onClick={joinRoom}>
+                Join
               </button>
-              
-              {connectionError && (
-                <div className="connection-error">
-                  <p>⚠️ {connectionError}</p>
-                </div>
-              )}
+              {error && <p className="wp-error">{error}</p>}
             </div>
           </div>
 
-          {/* How to Test */}
-          <div className="features-info">
-            <h3>🧪 How to Test Watch Party</h3>
-            <div className="test-instructions">
-              <ol>
-                <li><strong>Open this page in Tab 1</strong> - Enter a name and click "Create Room"</li>
-                <li><strong>Copy the room code</strong> - Click the code to copy it</li>
-                <li><strong>Open this page in Tab 2</strong> - Enter a different name</li>
-                <li><strong>Paste the code and join</strong> - You'll see both users connected!</li>
-              </ol>
-            </div>
-            
-            <h3 style={{marginTop: '24px'}}>✨ Features</h3>
-            <div className="features-grid">
-              <div className="feature-item">
-                <span className="feature-icon">🎮</span>
-                <span>Pass the remote</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🔄</span>
-                <span>Synchronized playback</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">💬</span>
-                <span>Live chat</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">😂</span>
-                <span>Quick reactions</span>
-              </div>
-            </div>
+          <div className="wp-instructions">
+            <h3>🧪 How to Test</h3>
+            <ol>
+              <li><strong>Tab 1:</strong> Enter name → Create Room</li>
+              <li><strong>Copy</strong> the 6-character code</li>
+              <li><strong>Tab 2:</strong> Enter name → Paste code → Join</li>
+            </ol>
           </div>
         </div>
       </section>
     );
   }
 
-  // Render room (in watch party)
+  // ROOM VIEW
   return (
-    <section className="section watch-party-section in-room">
-      <div className="watch-party-room">
-        {/* Remote Request Modal */}
-        {remoteRequestFrom && (
-          <div className="remote-request-modal">
-            <div className="remote-request-content">
-              <div className="request-icon">🎮</div>
-              <h3>Remote Request</h3>
-              <p><strong>{remoteRequestFrom.name}</strong> wants the remote control</p>
-              <div className="request-actions">
-                <button className="accept-btn" onClick={acceptRemoteRequest}>
-                  ✓ Pass Remote
+    <section className="section watch-party-section">
+      {/* Pass Remote Modal */}
+      {showPassModal && (
+        <div className="wp-modal-overlay" onClick={() => setShowPassModal(false)}>
+          <div className="wp-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>🎮 Pass Remote To</h3>
+            <div className="wp-user-list">
+              {participants.filter(p => p.id !== visitorId).map(p => (
+                <button key={p.id} className="wp-user-btn" onClick={() => passRemote(p.id)}>
+                  <span className="wp-user-avatar">{p.name[0]}</span>
+                  <span>{p.name}</span>
+                  {p.id === controllerId && <span className="wp-remote-badge">🎮</span>}
                 </button>
-                <button className="decline-btn" onClick={declineRemoteRequest}>
-                  ✕ Decline
-                </button>
-              </div>
+              ))}
+              {participants.length <= 1 && <p>No other users</p>}
             </div>
+            <button className="wp-btn wp-btn-close" onClick={() => setShowPassModal(false)}>Close</button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Pass Remote Modal */}
-        {showPassRemoteModal && (
-          <div className="pass-remote-modal">
-            <div className="pass-remote-content">
-              <div className="modal-header">
-                <h3>🎮 Pass the Remote</h3>
-                <button className="close-btn" onClick={() => setShowPassRemoteModal(false)}>✕</button>
-              </div>
-              <p>Select who should control the video:</p>
-              <div className="user-list">
-                {participants.filter(p => p.id !== userId.current).map((p) => (
-                  <button 
-                    key={p.id} 
-                    className="user-select-btn"
-                    onClick={() => passRemoteTo(p.id)}
-                  >
-                    <span className="user-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                    <span className="user-name">{p.name}</span>
-                    {p.isHost && <span className="host-badge">Host</span>}
-                    {p.id === controllerId && <span className="remote-badge">🎮</span>}
-                  </button>
-                ))}
-              </div>
-              {participants.length <= 1 && (
-                <p className="no-users-msg">No other users to pass the remote to</p>
-              )}
-            </div>
-          </div>
-        )}
+      {/* Room Header */}
+      <div className="wp-room-header">
+        <div className="wp-room-info">
+          <h2>🎉 Watch Party</h2>
+          <button className="wp-code-display" onClick={copyCode}>
+            <span>Room: </span>
+            <strong>{roomCode}</strong>
+            <span>📋</span>
+          </button>
+        </div>
 
-        {/* Room Header */}
-        <div className="room-header">
-          <div className="room-info">
-            <h2>🎉 Watch Party</h2>
-            <div className="room-code-display" onClick={copyRoomCode} title="Click to copy">
-              <span className="code-label">Room:</span>
-              <span className="code-value">{roomCode}</span>
-              <span className="copy-icon">📋</span>
-            </div>
-          </div>
-          
-          {/* Remote Control Status */}
-          <div className="remote-status">
-            {hasRemote ? (
-              <div className="has-remote">
-                <span className="remote-icon">🎮</span>
-                <span>You have the remote</span>
-              </div>
+        <div className="wp-remote-status">
+          {hasRemote ? (
+            <span className="wp-has-remote">🎮 You have remote</span>
+          ) : (
+            <span className="wp-no-remote">📺 {getControllerName()} has remote</span>
+          )}
+        </div>
+
+        <div className="wp-room-actions">
+          {hasRemote && (
+            <>
+              <button className="wp-btn" onClick={selectContent}>🎬 Select</button>
+              <button className="wp-btn" onClick={() => setShowPassModal(true)}>🎮 Pass</button>
+            </>
+          )}
+          {!hasRemote && <button className="wp-btn" onClick={requestRemote}>🙋 Request</button>}
+          {isHost && !hasRemote && <button className="wp-btn" onClick={takeBackRemote}>👑 Take Back</button>}
+          <button className="wp-btn wp-btn-leave" onClick={leaveRoom}>🚪 Leave</button>
+        </div>
+      </div>
+
+      {/* Room Content */}
+      <div className="wp-room-content">
+        {/* Video */}
+        <div className="wp-video-section">
+          <div className="wp-video-container">
+            {videoUrl ? (
+              <iframe
+                src={videoUrl}
+                frameBorder="0"
+                allowFullScreen
+                allow="autoplay; fullscreen"
+                title="Video"
+              />
             ) : (
-              <div className="no-remote">
-                <span className="remote-icon">📺</span>
-                <span>{getControllerName()} has the remote</span>
+              <div className="wp-video-placeholder">
+                <span>🎬</span>
+                <p>{hasRemote ? 'Click Select to pick content' : `Waiting for ${getControllerName()}...`}</p>
               </div>
             )}
           </div>
-          
-          <div className="room-actions">
-            {hasRemote && (
-              <>
-                <button className="room-btn select-btn" onClick={selectFromCollection}>
-                  🎬 Select Content
-                </button>
-                <button className="room-btn pass-btn" onClick={() => setShowPassRemoteModal(true)}>
-                  🎮 Pass Remote
-                </button>
-              </>
-            )}
-            {!hasRemote && (
-              <button className="room-btn request-btn" onClick={requestRemote}>
-                🙋 Request Remote
+
+          {hasRemote && videoUrl && (
+            <div className="wp-video-controls">
+              <button className="wp-btn" onClick={togglePlay}>
+                {isPlaying ? '⏸️ Pause' : '▶️ Play'}
               </button>
-            )}
-            {isHost && !hasRemote && (
-              <button className="room-btn takeback-btn" onClick={takeBackRemote}>
-                👑 Take Back Remote
-              </button>
-            )}
-            <button className="room-btn leave-btn" onClick={leaveRoom}>
-              🚪 Leave
-            </button>
+            </div>
+          )}
+
+          <div className="wp-participants">
+            <span>👥</span>
+            {participants.map((p, i) => (
+              <span key={i} className={`wp-participant ${p.id === controllerId ? 'controller' : ''}`}>
+                {p.id === controllerId && '🎮 '}
+                {p.name}
+                {p.isHost && ' 👑'}
+                {p.id === visitorId && ' (you)'}
+              </span>
+            ))}
           </div>
         </div>
 
-        <div className="room-content">
-          {/* Video Section */}
-          <div className="video-section">
-            {/* Video Player */}
-            <div className="video-container">
-              {videoUrl ? (
-                <iframe
-                  ref={iframeRef}
-                  src={videoUrl}
-                  frameBorder="0"
-                  allowFullScreen
-                  allow="autoplay; fullscreen; encrypted-media"
-                  title="Watch Party Video"
-                />
-              ) : (
-                <div className="video-placeholder">
-                  <div className="placeholder-content">
-                    <span className="placeholder-icon">🎬</span>
-                    <p>{hasRemote ? 'Click "Select Content" to start watching' : `Waiting for ${getControllerName()} to select content...`}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Controller Indicator */}
-              {!hasRemote && videoUrl && (
-                <div className="controller-indicator">
-                  <span>🎮 {getControllerName()} is controlling</span>
-                </div>
-              )}
-            </div>
-
-            {/* Video Controls (Controller only) */}
-            {hasRemote && videoUrl && (
-              <div className="video-controls">
-                <button 
-                  className={`control-btn ${isPlaying ? 'playing' : ''}`}
-                  onClick={togglePlayPause}
-                >
-                  {isPlaying ? '⏸️ Pause' : '▶️ Play'}
-                </button>
-                <span className="sync-status">
-                  🔄 Synced with {participants.length} viewer{participants.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )}
-
-            {/* Participants */}
-            <div className="participants-bar">
-              <span className="participants-label">👥 Watching:</span>
-              <div className="participants-list">
-                {participants.map((p, idx) => (
-                  <span 
-                    key={p.id || idx} 
-                    className={`participant ${p.isHost ? 'host' : ''} ${p.id === userId.current ? 'you' : ''} ${p.id === controllerId ? 'controller' : ''}`}
-                    title={p.id === controllerId ? 'Has the remote' : ''}
-                  >
-                    {p.id === controllerId && <span className="mini-remote">🎮</span>}
-                    {p.name}
-                    {p.isHost && ' 👑'}
-                    {p.id === userId.current && ' (you)'}
-                  </span>
-                ))}
-              </div>
-            </div>
+        {/* Chat */}
+        <div className="wp-chat-section">
+          <div className="wp-chat-header">
+            <h3>💬 Chat</h3>
+            <span>{participants.length} online</span>
           </div>
 
-          {/* Chat Section */}
-          <div className="chat-section">
-            <div className="chat-header">
-              <h3>💬 Live Chat</h3>
-              <span className="online-count">{participants.length} online</span>
-            </div>
-
-            {/* Messages */}
-            <div className="chat-messages">
-              {messages.length === 0 ? (
-                <div className="no-messages">
-                  <p>No messages yet. Say hi! 👋</p>
-                </div>
-              ) : (
-                messages.map((msg, idx) => (
-                  <div 
-                    key={msg.id || idx} 
-                    className={`chat-message ${msg.type} ${msg.userId === userId.current ? 'own' : ''}`}
-                  >
-                    {msg.type === 'system' ? (
-                      <span className="system-text">{msg.text}</span>
-                    ) : msg.type === 'reaction' ? (
-                      <div className="reaction-message">
-                        <span className="reaction-user">{msg.username}</span>
-                        <span className="reaction-emoji">{msg.text}</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="message-header">
-                          <span className="message-user">{msg.username}</span>
-                          <span className="message-time">{formatTime(msg.timestamp)}</span>
-                        </div>
-                        <p className="message-text">{msg.text}</p>
-                      </>
-                    )}
+          <div className="wp-chat-messages">
+            {messages.map((msg, i) => (
+              <div key={i} className={`wp-message ${msg.type} ${msg.userId === visitorId ? 'own' : ''}`}>
+                {msg.type === 'system' ? (
+                  <span className="wp-system-msg">{msg.text}</span>
+                ) : msg.type === 'reaction' ? (
+                  <span className="wp-reaction-msg">{msg.name}: {msg.text}</span>
+                ) : (
+                  <div className="wp-chat-msg">
+                    <strong>{msg.name}</strong>
+                    <p>{msg.text}</p>
                   </div>
-                ))
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Quick Reactions */}
-            <div className="quick-reactions">
-              {quickReactions.map((emoji) => (
-                <button 
-                  key={emoji} 
-                  className="reaction-btn"
-                  onClick={() => sendReaction(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-
-            {/* Message Input */}
-            <form className="chat-input-form" onSubmit={sendMessage}>
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                maxLength={500}
-              />
-              <button type="submit" className="send-btn">
-                ➤
-              </button>
-            </form>
+                )}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
           </div>
+
+          <div className="wp-reactions">
+            {reactions.map(e => (
+              <button key={e} onClick={() => sendReaction(e)}>{e}</button>
+            ))}
+          </div>
+
+          <form className="wp-chat-form" onSubmit={sendMessage}>
+            <input
+              type="text"
+              placeholder="Message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
+            <button type="submit">➤</button>
+          </form>
         </div>
       </div>
     </section>

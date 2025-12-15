@@ -1,5 +1,5 @@
 /* ========================================
-   WatchPartySection.jsx - Watch Party with Real-time Sync
+   WatchPartySection.jsx - Watch Party with Remote Control Passing
    ======================================== */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -7,8 +7,12 @@ import { useApp } from '../../context/AppContext';
 import { generateRoomCode, generateUserId } from '../../utils/helpers';
 import './WatchPartySection.css';
 
-// Simulated WebRTC/WebSocket sync (in production, use Firebase, Socket.io, or WebRTC)
-const SYNC_INTERVAL = 1000; // Sync every second
+// Global room storage that persists across component renders
+const globalRoomStorage = {};
+const BROADCAST_CHANNEL_NAME = 'watchparty_sync';
+
+// Sync interval
+const SYNC_INTERVAL = 500;
 
 function WatchPartySection() {
   const { state, actions } = useApp();
@@ -18,34 +22,155 @@ function WatchPartySection() {
   const [joinCode, setJoinCode] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [isInRoom, setIsInRoom] = useState(false);
-  const [roomData, setRoomData] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [username, setUsername] = useState(() => localStorage.getItem('watchparty_username') || '');
+  
+  // Remote control state
+  const [controllerId, setControllerId] = useState(null); // Who has the remote
+  const [showPassRemoteModal, setShowPassRemoteModal] = useState(false);
+  const [remoteRequestFrom, setRemoteRequestFrom] = useState(null); // Someone requesting remote
+  
+  // Connection state
+  const [connectionError, setConnectionError] = useState(null);
   
   // Video state
   const [videoUrl, setVideoUrl] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [selectedContent, setSelectedContent] = useState(null);
   
   // Chat state
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   // Refs
   const iframeRef = useRef(null);
   const chatEndRef = useRef(null);
   const syncIntervalRef = useRef(null);
-  const userId = useRef(generateUserId());
+  const broadcastChannelRef = useRef(null);
+  const userId = useRef(() => {
+    let id = localStorage.getItem('watchparty_userid');
+    if (!id) {
+      id = generateUserId();
+      localStorage.setItem('watchparty_userid', id);
+    }
+    return id;
+  })();
 
   // Quick reactions
   const quickReactions = ['😂', '😮', '😢', '😍', '🔥', '👏', '💀', '🎬'];
+
+  // Check if current user has the remote
+  const hasRemote = controllerId === userId.current;
+  
+  // Get controller name
+  const getControllerName = () => {
+    const controller = participants.find(p => p.id === controllerId);
+    return controller?.name || 'Unknown';
+  };
+
+  // Initialize BroadcastChannel for same-browser sync
+  useEffect(() => {
+    try {
+      broadcastChannelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      
+      broadcastChannelRef.current.onmessage = (event) => {
+        const { type, data } = event.data;
+        
+        switch (type) {
+          case 'ROOM_CREATED':
+            globalRoomStorage[data.code] = data.room;
+            break;
+            
+          case 'ROOM_UPDATED':
+            globalRoomStorage[data.code] = data.room;
+            if (data.code === roomCode) {
+              setParticipants(data.room.participants || []);
+              setMessages(data.room.messages || []);
+              setControllerId(data.room.controllerId);
+              
+              // Non-controllers sync video state
+              if (data.room.controllerId !== userId.current) {
+                setVideoUrl(data.room.videoUrl || '');
+                setIsPlaying(data.room.isPlaying || false);
+              }
+            }
+            break;
+            
+          case 'ROOM_DELETED':
+            delete globalRoomStorage[data.code];
+            if (data.code === roomCode && !isHost) {
+              handleForceLeave('The host ended the watch party');
+            }
+            break;
+            
+          case 'REQUEST_ROOM':
+            if (globalRoomStorage[data.code]) {
+              broadcastChannelRef.current?.postMessage({
+                type: 'ROOM_EXISTS',
+                data: { code: data.code, room: globalRoomStorage[data.code] }
+              });
+            }
+            break;
+            
+          case 'ROOM_EXISTS':
+            if (data.code && data.room) {
+              globalRoomStorage[data.code] = data.room;
+            }
+            break;
+            
+          case 'REMOTE_REQUEST':
+            // Someone is requesting the remote
+            if (data.code === roomCode && data.toUserId === userId.current) {
+              setRemoteRequestFrom(data.fromUser);
+            }
+            break;
+            
+          default:
+            break;
+        }
+      };
+    } catch (e) {
+      console.log('BroadcastChannel not supported');
+    }
+    
+    return () => {
+      broadcastChannelRef.current?.close();
+    };
+  }, [roomCode, isHost]);
 
   // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Force leave handler
+  const handleForceLeave = (message) => {
+    setRoomCode('');
+    setJoinCode('');
+    setIsHost(false);
+    setIsInRoom(false);
+    setParticipants([]);
+    setMessages([]);
+    setVideoUrl('');
+    setSelectedContent(null);
+    setConnectionError(null);
+    setControllerId(null);
+    
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+    
+    actions.addNotification(message, 'info');
+  };
+
+  // Broadcast room update to all tabs
+  const broadcastUpdate = useCallback((code, room) => {
+    globalRoomStorage[code] = room;
+    broadcastChannelRef.current?.postMessage({
+      type: 'ROOM_UPDATED',
+      data: { code, room }
+    });
+  }, []);
 
   // Create a new room
   const createRoom = () => {
@@ -57,40 +182,43 @@ function WatchPartySection() {
     localStorage.setItem('watchparty_username', username);
     
     const code = generateRoomCode();
-    setRoomCode(code);
-    setIsHost(true);
-    setIsInRoom(true);
-    setParticipants([{ id: userId.current, name: username, isHost: true }]);
-    setRoomData({
-      code,
-      host: userId.current,
-      created: Date.now(),
-      videoUrl: '',
-      isPlaying: false,
-      currentTime: 0
-    });
-    
-    // Store room in localStorage for demo (in production, use a backend)
-    const roomInfo = {
+    const newRoom = {
       code,
       host: userId.current,
       hostName: username,
+      controllerId: userId.current, // Host starts with remote
       participants: [{ id: userId.current, name: username, isHost: true }],
-      messages: [],
+      messages: [{
+        id: Date.now(),
+        type: 'system',
+        text: `${username} created the room`,
+        timestamp: Date.now()
+      }],
       videoUrl: '',
       isPlaying: false,
-      currentTime: 0
+      currentTime: 0,
+      created: Date.now()
     };
-    localStorage.setItem(`watchparty_${code}`, JSON.stringify(roomInfo));
+    
+    globalRoomStorage[code] = newRoom;
+    
+    broadcastChannelRef.current?.postMessage({
+      type: 'ROOM_CREATED',
+      data: { code, room: newRoom }
+    });
+    
+    setRoomCode(code);
+    setIsHost(true);
+    setIsInRoom(true);
+    setParticipants(newRoom.participants);
+    setMessages(newRoom.messages);
+    setControllerId(userId.current);
     
     actions.addNotification(`Room created! Code: ${code}`, 'success');
-    
-    // Add system message
-    addSystemMessage(`${username} created the room`);
   };
 
   // Join an existing room
-  const joinRoom = () => {
+  const joinRoom = async () => {
     if (!username.trim()) {
       actions.addNotification('Please enter a username first', 'warning');
       return;
@@ -103,48 +231,103 @@ function WatchPartySection() {
     
     localStorage.setItem('watchparty_username', username);
     
-    // Try to find room (demo using localStorage)
-    const roomInfo = localStorage.getItem(`watchparty_${joinCode.toUpperCase()}`);
+    const code = joinCode.toUpperCase();
     
-    if (!roomInfo) {
+    let room = globalRoomStorage[code];
+    
+    if (!room) {
+      broadcastChannelRef.current?.postMessage({
+        type: 'REQUEST_ROOM',
+        data: { code }
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      room = globalRoomStorage[code];
+    }
+    
+    if (!room) {
+      setConnectionError(
+        'Room not found. Make sure:\n' +
+        '• The host has created the room\n' +
+        '• You\'re using the correct code\n' +
+        '• The host\'s browser tab is still open'
+      );
       actions.addNotification('Room not found. Check the code and try again.', 'error');
       return;
     }
     
-    const room = JSON.parse(roomInfo);
+    setConnectionError(null);
     
-    // Add self to participants
     const newParticipant = { id: userId.current, name: username, isHost: false };
-    room.participants.push(newParticipant);
-    localStorage.setItem(`watchparty_${joinCode.toUpperCase()}`, JSON.stringify(room));
+    const existingParticipant = room.participants?.find(p => p.id === userId.current);
     
-    setRoomCode(joinCode.toUpperCase());
-    setIsHost(false);
+    let updatedParticipants;
+    if (existingParticipant) {
+      updatedParticipants = room.participants;
+    } else {
+      updatedParticipants = [...(room.participants || []), newParticipant];
+    }
+    
+    const joinMessage = {
+      id: Date.now(),
+      type: 'system',
+      text: `${username} joined the room`,
+      timestamp: Date.now()
+    };
+    
+    const updatedRoom = {
+      ...room,
+      participants: updatedParticipants,
+      messages: [...(room.messages || []), joinMessage]
+    };
+    
+    broadcastUpdate(code, updatedRoom);
+    
+    setRoomCode(code);
+    setIsHost(room.host === userId.current);
     setIsInRoom(true);
-    setParticipants(room.participants);
-    setMessages(room.messages || []);
-    setVideoUrl(room.videoUrl || '');
-    setIsPlaying(room.isPlaying || false);
-    setCurrentTime(room.currentTime || 0);
-    setRoomData(room);
+    setParticipants(updatedRoom.participants);
+    setMessages(updatedRoom.messages);
+    setVideoUrl(updatedRoom.videoUrl || '');
+    setIsPlaying(updatedRoom.isPlaying || false);
+    setControllerId(updatedRoom.controllerId);
     
-    actions.addNotification(`Joined room ${joinCode.toUpperCase()}!`, 'success');
-    addSystemMessage(`${username} joined the room`);
+    actions.addNotification(`Joined room ${code}!`, 'success');
   };
 
   // Leave room
   const leaveRoom = () => {
-    if (roomCode) {
-      const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-      if (roomInfo) {
-        const room = JSON.parse(roomInfo);
-        room.participants = room.participants.filter(p => p.id !== userId.current);
+    if (roomCode && globalRoomStorage[roomCode]) {
+      if (isHost) {
+        delete globalRoomStorage[roomCode];
+        broadcastChannelRef.current?.postMessage({
+          type: 'ROOM_DELETED',
+          data: { code: roomCode }
+        });
+      } else {
+        const room = globalRoomStorage[roomCode];
+        const updatedParticipants = (room.participants || []).filter(p => p.id !== userId.current);
         
-        if (room.participants.length === 0) {
-          localStorage.removeItem(`watchparty_${roomCode}`);
-        } else {
-          localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+        // If leaving user had remote, give it back to host
+        let newControllerId = room.controllerId;
+        if (room.controllerId === userId.current) {
+          newControllerId = room.host;
         }
+        
+        const leaveMessage = {
+          id: Date.now(),
+          type: 'system',
+          text: `${username} left the room`,
+          timestamp: Date.now()
+        };
+        
+        const updatedRoom = { 
+          ...room, 
+          participants: updatedParticipants,
+          controllerId: newControllerId,
+          messages: [...(room.messages || []), leaveMessage]
+        };
+        broadcastUpdate(roomCode, updatedRoom);
       }
     }
     
@@ -152,11 +335,12 @@ function WatchPartySection() {
     setJoinCode('');
     setIsHost(false);
     setIsInRoom(false);
-    setRoomData(null);
     setParticipants([]);
     setMessages([]);
     setVideoUrl('');
     setSelectedContent(null);
+    setConnectionError(null);
+    setControllerId(null);
     
     if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
@@ -165,23 +349,99 @@ function WatchPartySection() {
     actions.addNotification('Left the room', 'info');
   };
 
-  // Add system message
-  const addSystemMessage = (text) => {
-    const msg = {
+  // Pass remote to another user (host or current controller only)
+  const passRemoteTo = (targetUserId) => {
+    if (!roomCode || (!isHost && !hasRemote)) return;
+    
+    const room = globalRoomStorage[roomCode];
+    if (!room) return;
+    
+    const targetUser = participants.find(p => p.id === targetUserId);
+    if (!targetUser) return;
+    
+    const systemMsg = {
       id: Date.now(),
       type: 'system',
-      text,
+      text: `🎮 ${username} passed the remote to ${targetUser.name}`,
       timestamp: Date.now()
     };
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
+    
+    const updatedRoom = {
+      ...room,
+      controllerId: targetUserId,
+      messages: [...(room.messages || []), systemMsg]
+    };
+    
+    broadcastUpdate(roomCode, updatedRoom);
+    setControllerId(targetUserId);
+    setMessages(updatedRoom.messages);
+    setShowPassRemoteModal(false);
+    
+    actions.addNotification(`Remote passed to ${targetUser.name}`, 'success');
+  };
+
+  // Take back remote (host only)
+  const takeBackRemote = () => {
+    if (!roomCode || !isHost) return;
+    
+    const room = globalRoomStorage[roomCode];
+    if (!room) return;
+    
+    const systemMsg = {
+      id: Date.now(),
+      type: 'system',
+      text: `🎮 ${username} took back the remote`,
+      timestamp: Date.now()
+    };
+    
+    const updatedRoom = {
+      ...room,
+      controllerId: userId.current,
+      messages: [...(room.messages || []), systemMsg]
+    };
+    
+    broadcastUpdate(roomCode, updatedRoom);
+    setControllerId(userId.current);
+    setMessages(updatedRoom.messages);
+    
+    actions.addNotification('You now have the remote', 'success');
+  };
+
+  // Request remote from current controller
+  const requestRemote = () => {
+    if (!roomCode || hasRemote) return;
+    
+    broadcastChannelRef.current?.postMessage({
+      type: 'REMOTE_REQUEST',
+      data: { 
+        code: roomCode, 
+        fromUser: { id: userId.current, name: username },
+        toUserId: controllerId
+      }
+    });
+    
+    actions.addNotification('Remote request sent!', 'info');
+  };
+
+  // Accept remote request
+  const acceptRemoteRequest = () => {
+    if (remoteRequestFrom) {
+      passRemoteTo(remoteRequestFrom.id);
+      setRemoteRequestFrom(null);
+    }
+  };
+
+  // Decline remote request
+  const declineRemoteRequest = () => {
+    setRemoteRequestFrom(null);
+    actions.addNotification('Remote request declined', 'info');
   };
 
   // Send chat message
   const sendMessage = (e) => {
     e?.preventDefault();
     
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !roomCode) return;
     
     const msg = {
       id: Date.now(),
@@ -192,13 +452,23 @@ function WatchPartySection() {
       timestamp: Date.now()
     };
     
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
+    const room = globalRoomStorage[roomCode];
+    if (room) {
+      const updatedRoom = {
+        ...room,
+        messages: [...(room.messages || []), msg]
+      };
+      broadcastUpdate(roomCode, updatedRoom);
+      setMessages(updatedRoom.messages);
+    }
+    
     setNewMessage('');
   };
 
   // Send reaction
   const sendReaction = (emoji) => {
+    if (!roomCode) return;
+    
     const msg = {
       id: Date.now(),
       type: 'reaction',
@@ -208,60 +478,126 @@ function WatchPartySection() {
       timestamp: Date.now()
     };
     
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
-  };
-
-  // Sync messages to "server" (localStorage for demo)
-  const syncMessages = (msgs) => {
-    if (!roomCode) return;
-    const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-    if (roomInfo) {
-      const room = JSON.parse(roomInfo);
-      room.messages = msgs;
-      localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+    const room = globalRoomStorage[roomCode];
+    if (room) {
+      const updatedRoom = {
+        ...room,
+        messages: [...(room.messages || []), msg]
+      };
+      broadcastUpdate(roomCode, updatedRoom);
+      setMessages(updatedRoom.messages);
     }
   };
 
-  // Sync video state
-  const syncVideoState = useCallback((playing, time) => {
-    if (!roomCode || !isHost) return;
+  // Set video URL (controller only)
+  const setVideo = (url) => {
+    if (!hasRemote || !roomCode) return;
     
-    const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-    if (roomInfo) {
-      const room = JSON.parse(roomInfo);
-      room.isPlaying = playing;
-      room.currentTime = time;
-      room.videoUrl = videoUrl;
-      localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+    const room = globalRoomStorage[roomCode];
+    if (room) {
+      const systemMsg = {
+        id: Date.now(),
+        type: 'system',
+        text: `🎬 Now watching: ${selectedContent?.title || 'New video'}`,
+        timestamp: Date.now()
+      };
+      
+      const updatedRoom = {
+        ...room,
+        videoUrl: url,
+        isPlaying: false,
+        currentTime: 0,
+        messages: [...(room.messages || []), systemMsg]
+      };
+      broadcastUpdate(roomCode, updatedRoom);
+      setVideoUrl(url);
+      setMessages(updatedRoom.messages);
     }
-  }, [roomCode, isHost, videoUrl]);
+  };
 
-  // Poll for updates (simulated real-time)
+  // Play/Pause (controller only)
+  const togglePlayPause = () => {
+    if (!hasRemote || !roomCode) return;
+    
+    const newState = !isPlaying;
+    const room = globalRoomStorage[roomCode];
+    
+    if (room) {
+      const systemMsg = {
+        id: Date.now(),
+        type: 'system',
+        text: newState ? '▶️ Video playing' : '⏸️ Video paused',
+        timestamp: Date.now()
+      };
+      
+      const updatedRoom = {
+        ...room,
+        isPlaying: newState,
+        messages: [...(room.messages || []), systemMsg]
+      };
+      broadcastUpdate(roomCode, updatedRoom);
+      setIsPlaying(newState);
+      setMessages(updatedRoom.messages);
+    }
+  };
+
+  // Select content
+  const selectFromCollection = () => {
+    const input = prompt('Enter TMDB ID or paste video URL:');
+    if (input) {
+      let url;
+      if (input.startsWith('http')) {
+        url = input;
+      } else {
+        url = `https://vidsrc.cc/v2/embed/movie/${input}`;
+      }
+      setVideoUrl(url);
+      setVideo(url);
+    }
+  };
+
+  // Copy room code
+  const copyRoomCode = () => {
+    navigator.clipboard.writeText(roomCode);
+    actions.addNotification('Room code copied! Share it with friends.', 'success');
+  };
+
+  // Format timestamp
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Polling for updates
   useEffect(() => {
     if (!isInRoom || !roomCode) return;
     
     syncIntervalRef.current = setInterval(() => {
-      const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-      if (roomInfo) {
-        const room = JSON.parse(roomInfo);
-        
-        // Update participants
-        setParticipants(room.participants || []);
-        
-        // Update messages
-        if (room.messages && room.messages.length !== messages.length) {
-          setMessages(room.messages);
+      const room = globalRoomStorage[roomCode];
+      if (room) {
+        if (JSON.stringify(room.participants) !== JSON.stringify(participants)) {
+          setParticipants(room.participants || []);
         }
         
-        // Sync video state if not host
-        if (!isHost) {
+        if (room.messages?.length !== messages.length) {
+          setMessages(room.messages || []);
+        }
+        
+        if (room.controllerId !== controllerId) {
+          setControllerId(room.controllerId);
+        }
+        
+        // Non-controllers sync video state
+        if (room.controllerId !== userId.current) {
           if (room.videoUrl !== videoUrl) {
-            setVideoUrl(room.videoUrl);
+            setVideoUrl(room.videoUrl || '');
           }
-          setIsPlaying(room.isPlaying);
-          setCurrentTime(room.currentTime);
+          if (room.isPlaying !== isPlaying) {
+            setIsPlaying(room.isPlaying || false);
+          }
         }
+      } else if (!isHost) {
+        handleForceLeave('The room has been closed');
       }
     }, SYNC_INTERVAL);
     
@@ -270,54 +606,7 @@ function WatchPartySection() {
         clearInterval(syncIntervalRef.current);
       }
     };
-  }, [isInRoom, roomCode, isHost, messages.length, videoUrl]);
-
-  // Set video URL (host only)
-  const setVideo = (url) => {
-    if (!isHost) return;
-    setVideoUrl(url);
-    syncVideoState(false, 0);
-    addSystemMessage(`Now watching: ${selectedContent?.title || 'New video'}`);
-  };
-
-  // Play/Pause (host only)
-  const togglePlayPause = () => {
-    if (!isHost) return;
-    const newState = !isPlaying;
-    setIsPlaying(newState);
-    syncVideoState(newState, currentTime);
-    addSystemMessage(newState ? '▶️ Video playing' : '⏸️ Video paused');
-  };
-
-  // Select content from collection
-  const selectFromCollection = () => {
-    // This would open a modal to select from collection
-    // For now, we'll use a simple prompt
-    const tmdbId = prompt('Enter TMDB ID or paste video URL:');
-    if (tmdbId) {
-      if (tmdbId.startsWith('http')) {
-        setVideoUrl(tmdbId);
-        setVideo(tmdbId);
-      } else {
-        // Assume it's a movie ID, construct embed URL
-        const url = `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
-        setVideoUrl(url);
-        setVideo(url);
-      }
-    }
-  };
-
-  // Copy room code
-  const copyRoomCode = () => {
-    navigator.clipboard.writeText(roomCode);
-    actions.addNotification('Room code copied!', 'success');
-  };
-
-  // Format timestamp
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, [isInRoom, roomCode, isHost, participants, messages.length, videoUrl, isPlaying, controllerId]);
 
   // Render lobby (not in room)
   if (!isInRoom) {
@@ -329,6 +618,14 @@ function WatchPartySection() {
         </div>
 
         <div className="watch-party-lobby">
+          {/* Connection Status */}
+          <div className="connection-status">
+            <span className="status-indicator"></span>
+            <span className="status-text">
+              💻 Same-browser sync active — Open this page in multiple tabs to test!
+            </span>
+          </div>
+
           {/* Username Input */}
           <div className="lobby-card username-card">
             <h3>👤 Your Name</h3>
@@ -369,13 +666,33 @@ function WatchPartySection() {
               <button className="lobby-btn join-btn" onClick={joinRoom}>
                 Join Room
               </button>
+              
+              {connectionError && (
+                <div className="connection-error">
+                  <p>⚠️ {connectionError}</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Features Info */}
+          {/* How to Test */}
           <div className="features-info">
-            <h3>✨ Watch Party Features</h3>
+            <h3>🧪 How to Test Watch Party</h3>
+            <div className="test-instructions">
+              <ol>
+                <li><strong>Open this page in Tab 1</strong> - Enter a name and click "Create Room"</li>
+                <li><strong>Copy the room code</strong> - Click the code to copy it</li>
+                <li><strong>Open this page in Tab 2</strong> - Enter a different name</li>
+                <li><strong>Paste the code and join</strong> - You'll see both users connected!</li>
+              </ol>
+            </div>
+            
+            <h3 style={{marginTop: '24px'}}>✨ Features</h3>
             <div className="features-grid">
+              <div className="feature-item">
+                <span className="feature-icon">🎮</span>
+                <span>Pass the remote</span>
+              </div>
               <div className="feature-item">
                 <span className="feature-icon">🔄</span>
                 <span>Synchronized playback</span>
@@ -388,10 +705,6 @@ function WatchPartySection() {
                 <span className="feature-icon">😂</span>
                 <span>Quick reactions</span>
               </div>
-              <div className="feature-item">
-                <span className="feature-icon">👥</span>
-                <span>See who's watching</span>
-              </div>
             </div>
           </div>
         </div>
@@ -403,24 +716,104 @@ function WatchPartySection() {
   return (
     <section className="section watch-party-section in-room">
       <div className="watch-party-room">
+        {/* Remote Request Modal */}
+        {remoteRequestFrom && (
+          <div className="remote-request-modal">
+            <div className="remote-request-content">
+              <div className="request-icon">🎮</div>
+              <h3>Remote Request</h3>
+              <p><strong>{remoteRequestFrom.name}</strong> wants the remote control</p>
+              <div className="request-actions">
+                <button className="accept-btn" onClick={acceptRemoteRequest}>
+                  ✓ Pass Remote
+                </button>
+                <button className="decline-btn" onClick={declineRemoteRequest}>
+                  ✕ Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pass Remote Modal */}
+        {showPassRemoteModal && (
+          <div className="pass-remote-modal">
+            <div className="pass-remote-content">
+              <div className="modal-header">
+                <h3>🎮 Pass the Remote</h3>
+                <button className="close-btn" onClick={() => setShowPassRemoteModal(false)}>✕</button>
+              </div>
+              <p>Select who should control the video:</p>
+              <div className="user-list">
+                {participants.filter(p => p.id !== userId.current).map((p) => (
+                  <button 
+                    key={p.id} 
+                    className="user-select-btn"
+                    onClick={() => passRemoteTo(p.id)}
+                  >
+                    <span className="user-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                    <span className="user-name">{p.name}</span>
+                    {p.isHost && <span className="host-badge">Host</span>}
+                    {p.id === controllerId && <span className="remote-badge">🎮</span>}
+                  </button>
+                ))}
+              </div>
+              {participants.length <= 1 && (
+                <p className="no-users-msg">No other users to pass the remote to</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Room Header */}
         <div className="room-header">
           <div className="room-info">
             <h2>🎉 Watch Party</h2>
             <div className="room-code-display" onClick={copyRoomCode} title="Click to copy">
-              <span className="code-label">Room Code:</span>
+              <span className="code-label">Room:</span>
               <span className="code-value">{roomCode}</span>
               <span className="copy-icon">📋</span>
             </div>
           </div>
+          
+          {/* Remote Control Status */}
+          <div className="remote-status">
+            {hasRemote ? (
+              <div className="has-remote">
+                <span className="remote-icon">🎮</span>
+                <span>You have the remote</span>
+              </div>
+            ) : (
+              <div className="no-remote">
+                <span className="remote-icon">📺</span>
+                <span>{getControllerName()} has the remote</span>
+              </div>
+            )}
+          </div>
+          
           <div className="room-actions">
-            {isHost && (
-              <button className="room-btn select-btn" onClick={selectFromCollection}>
-                🎬 Select Content
+            {hasRemote && (
+              <>
+                <button className="room-btn select-btn" onClick={selectFromCollection}>
+                  🎬 Select Content
+                </button>
+                <button className="room-btn pass-btn" onClick={() => setShowPassRemoteModal(true)}>
+                  🎮 Pass Remote
+                </button>
+              </>
+            )}
+            {!hasRemote && (
+              <button className="room-btn request-btn" onClick={requestRemote}>
+                🙋 Request Remote
+              </button>
+            )}
+            {isHost && !hasRemote && (
+              <button className="room-btn takeback-btn" onClick={takeBackRemote}>
+                👑 Take Back Remote
               </button>
             )}
             <button className="room-btn leave-btn" onClick={leaveRoom}>
-              🚪 Leave Room
+              🚪 Leave
             </button>
           </div>
         </div>
@@ -443,14 +836,21 @@ function WatchPartySection() {
                 <div className="video-placeholder">
                   <div className="placeholder-content">
                     <span className="placeholder-icon">🎬</span>
-                    <p>{isHost ? 'Select content to start watching' : 'Waiting for host to select content...'}</p>
+                    <p>{hasRemote ? 'Click "Select Content" to start watching' : `Waiting for ${getControllerName()} to select content...`}</p>
                   </div>
+                </div>
+              )}
+              
+              {/* Controller Indicator */}
+              {!hasRemote && videoUrl && (
+                <div className="controller-indicator">
+                  <span>🎮 {getControllerName()} is controlling</span>
                 </div>
               )}
             </div>
 
-            {/* Video Controls (Host only) */}
-            {isHost && videoUrl && (
+            {/* Video Controls (Controller only) */}
+            {hasRemote && videoUrl && (
               <div className="video-controls">
                 <button 
                   className={`control-btn ${isPlaying ? 'playing' : ''}`}
@@ -468,12 +868,16 @@ function WatchPartySection() {
             <div className="participants-bar">
               <span className="participants-label">👥 Watching:</span>
               <div className="participants-list">
-                {participants.map((p) => (
+                {participants.map((p, idx) => (
                   <span 
-                    key={p.id} 
-                    className={`participant ${p.isHost ? 'host' : ''} ${p.id === userId.current ? 'you' : ''}`}
+                    key={p.id || idx} 
+                    className={`participant ${p.isHost ? 'host' : ''} ${p.id === userId.current ? 'you' : ''} ${p.id === controllerId ? 'controller' : ''}`}
+                    title={p.id === controllerId ? 'Has the remote' : ''}
                   >
-                    {p.name} {p.isHost && '👑'} {p.id === userId.current && '(you)'}
+                    {p.id === controllerId && <span className="mini-remote">🎮</span>}
+                    {p.name}
+                    {p.isHost && ' 👑'}
+                    {p.id === userId.current && ' (you)'}
                   </span>
                 ))}
               </div>
@@ -494,9 +898,9 @@ function WatchPartySection() {
                   <p>No messages yet. Say hi! 👋</p>
                 </div>
               ) : (
-                messages.map((msg) => (
+                messages.map((msg, idx) => (
                   <div 
-                    key={msg.id} 
+                    key={msg.id || idx} 
                     className={`chat-message ${msg.type} ${msg.userId === userId.current ? 'own' : ''}`}
                   >
                     {msg.type === 'system' ? (

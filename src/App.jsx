@@ -24,6 +24,8 @@ import FocusSection from './components/sections/FocusSection';
 import CollectionSection from './components/sections/CollectionSection';
 import WatchlistsSection from './components/sections/WatchlistsSection';
 import StatsSection from './components/sections/StatsSection';
+import WatchPartySection from './components/sections/WatchPartySection';
+import ReleaseCalendarSection from './components/sections/ReleaseCalendarSection';
 
 // Common Components
 import Notification from './components/common/Notification';
@@ -238,6 +240,10 @@ function App() {
         return <WatchlistsSection {...sectionProps} />;
       case 'stats':
         return <StatsSection />;
+      case 'watchparty':
+        return <WatchPartySection />;
+      case 'calendar':
+        return <ReleaseCalendarSection />;
       default:
         return <DiscoverSection {...sectionProps} />;
     }

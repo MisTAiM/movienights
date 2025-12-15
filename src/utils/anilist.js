@@ -520,11 +520,116 @@ export function getStreamingSources(anime, episode = 1, language = 'sub') {
   ];
 }
 
+/**
+ * Get upcoming anime (not yet released or releasing soon)
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} Upcoming anime
+ */
+export async function getUpcomingAnime(page = 1, perPage = 24) {
+  // Get current season and year for upcoming content
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  
+  // Determine next season
+  let nextSeason, seasonYear;
+  if (currentMonth <= 3) {
+    nextSeason = 'SPRING';
+    seasonYear = currentYear;
+  } else if (currentMonth <= 6) {
+    nextSeason = 'SUMMER';
+    seasonYear = currentYear;
+  } else if (currentMonth <= 9) {
+    nextSeason = 'FALL';
+    seasonYear = currentYear;
+  } else {
+    nextSeason = 'WINTER';
+    seasonYear = currentYear + 1;
+  }
+
+  const query = `
+    query ($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          currentPage
+          hasNextPage
+        }
+        media(
+          type: ANIME, 
+          status_in: [NOT_YET_RELEASED, RELEASING],
+          season: $season,
+          seasonYear: $seasonYear,
+          sort: [POPULARITY_DESC]
+        ) {
+          id
+          idMal
+          title {
+            romaji
+            english
+          }
+          coverImage {
+            large
+            extraLarge
+          }
+          bannerImage
+          averageScore
+          seasonYear
+          season
+          description
+          episodes
+          format
+          status
+          genres
+          startDate {
+            year
+            month
+            day
+          }
+          airingSchedule(notYetAired: true, perPage: 1) {
+            nodes {
+              airingAt
+              episode
+            }
+          }
+        }
+      }
+    }
+  `;
+  
+  const data = await graphqlFetch(query, { page, perPage, season: nextSeason, seasonYear });
+  
+  return {
+    pageInfo: data.Page.pageInfo,
+    results: data.Page.media.map(anime => {
+      const normalized = normalizeAnime(anime);
+      
+      // Add start date if available
+      if (anime.startDate?.year) {
+        const month = String(anime.startDate.month || 1).padStart(2, '0');
+        const day = String(anime.startDate.day || 1).padStart(2, '0');
+        normalized.startDate = `${anime.startDate.year}-${month}-${day}`;
+        normalized.releaseDate = normalized.startDate;
+      }
+      
+      // Add next airing info
+      if (anime.airingSchedule?.nodes?.[0]) {
+        normalized.nextAiringAt = anime.airingSchedule.nodes[0].airingAt;
+        normalized.nextEpisode = anime.airingSchedule.nodes[0].episode;
+      }
+      
+      return normalized;
+    })
+  };
+}
+
 export default {
   getPopularAnime,
   searchAnime,
   getAnimeDetails,
   getTrendingAnime,
   getAnimeGenres,
-  getStreamingSources
+  getStreamingSources,
+  getUpcomingAnime
 };

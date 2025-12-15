@@ -174,15 +174,30 @@ function Toolbar({ onSearch }) {
   }, [currentSection]);
 
   const handleSearch = (e) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+    if (e.key === 'Enter') {
       onSearch?.(searchQuery.trim());
     }
   };
 
   const handleSearchClick = () => {
-    if (searchQuery.trim()) {
-      onSearch?.(searchQuery.trim());
+    onSearch?.(searchQuery.trim());
+  };
+
+  // Handle search input change - reset when cleared
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    // If search is cleared, reset results
+    if (value === '' || value.trim() === '') {
+      onSearch?.('');
     }
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('');
+    onSearch?.('');
   };
 
   const handleFilterChange = (filterName, value) => {
@@ -396,9 +411,14 @@ function Toolbar({ onSearch }) {
             className="search-input"
             placeholder={isAnimeSection ? "Search anime..." : "Search..."}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             onKeyPress={handleSearch}
           />
+          {searchQuery && (
+            <button className="search-clear-btn" onClick={clearSearch} title="Clear search">
+              ✕
+            </button>
+          )}
           <button className="search-btn" onClick={handleSearchClick}>
             🔍
           </button>

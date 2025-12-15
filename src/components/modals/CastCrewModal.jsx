@@ -44,8 +44,8 @@ function CastCrewModal({ isOpen, onClose, item }) {
   const title = item.title || item.name;
 
   return (
-    <ModalBackdrop isOpen={isOpen} onClose={onClose}>
-      <ModalContent maxWidth="900px">
+    <ModalBackdrop isOpen={isOpen} onClose={onClose} className="cast-crew-modal-backdrop">
+      <ModalContent maxWidth="900px" className="cast-crew-modal-content">
         <ModalHeader onClose={onClose}>
           <h2>{title} - Cast & Crew</h2>
         </ModalHeader>

@@ -233,6 +233,16 @@ export function generateRoomCode(length = 6) {
 }
 
 /**
+ * Generate unique user ID for watch party
+ * @returns {string} Unique user ID
+ */
+export function generateUserId() {
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 8);
+  return `user_${timestamp}_${randomPart}`;
+}
+
+/**
  * Create share link with collection data
  * @param {Object} data - Data to encode
  * @returns {string} Share URL

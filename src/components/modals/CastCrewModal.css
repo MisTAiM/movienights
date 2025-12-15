@@ -2,6 +2,15 @@
    CastCrewModal.css - Cast & Crew Modal Styles
    ======================================== */
 
+/* Higher z-index to appear above player modal */
+.cast-crew-modal-backdrop {
+  z-index: 1100 !important;
+}
+
+.cast-crew-modal-content {
+  z-index: 1101;
+}
+
 .credits-section {
   margin-bottom: 32px;
 }

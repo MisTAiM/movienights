@@ -362,6 +362,10 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
   if (!item) return null;
 
   const title = item.title || item.name;
+  const description = item.overview || item.description || '';
+  const year = item.year || (item.release_date || item.releaseDate || '').split('-')[0];
+  const rating = (item.vote_average || item.voteAverage || 0).toFixed(1);
+  const genres = item.genres || [];
 
   return (
     <ModalBackdrop isOpen={isOpen} onClose={handleClose} className="player-modal-backdrop">
@@ -383,6 +387,29 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
         </ModalHeader>
 
         <ModalBody className="player-modal-body">
+          {/* Content Info Section */}
+          <div className="content-info-section">
+            <div className="content-meta">
+              {year && <span className="meta-item">📅 {year}</span>}
+              {rating > 0 && <span className="meta-item">⭐ {rating}/10</span>}
+              {item.type && (
+                <span className="meta-item type-badge">
+                  {item.type === 'movie' && '🎬 Movie'}
+                  {item.type === 'tv' && '📺 TV Show'}
+                  {item.type === 'anime' && '🎌 Anime'}
+                </span>
+              )}
+              {genres.length > 0 && (
+                <span className="meta-item genres">
+                  {genres.slice(0, 3).join(' • ')}
+                </span>
+              )}
+            </div>
+            {description && (
+              <p className="content-description">{description}</p>
+            )}
+          </div>
+
           {/* Episode Selector (TV/Anime only) */}
           {(item.type === 'tv' || item.type === 'anime') && (
             <div className="episode-selector">

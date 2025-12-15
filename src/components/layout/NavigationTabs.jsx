@@ -26,6 +26,13 @@ const navGroups = [
     ]
   },
   {
+    id: 'social',
+    tabs: [
+      { id: 'watchparty', label: 'Party', icon: '🎉' },
+      { id: 'calendar', label: 'Calendar', icon: '📅' },
+    ]
+  },
+  {
     id: 'personal',
     tabs: [
       { id: 'focus', label: 'Focus', icon: '🧘' },

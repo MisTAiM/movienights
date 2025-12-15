@@ -366,6 +366,89 @@ export function getPosterUrl(path, size = 'w500') {
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
+/**
+ * Get upcoming movies within a date range
+ * @param {string} startDate - Start date (YYYY-MM-DD)
+ * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {number} page - Page number
+ * @returns {Promise<Object>} Upcoming movies
+ */
+export async function getUpcomingMovies(startDate, endDate, page = 1) {
+  const params = {
+    page,
+    sort_by: 'primary_release_date.asc',
+    'primary_release_date.gte': startDate,
+    'primary_release_date.lte': endDate,
+    'vote_count.gte': 0
+  };
+  
+  const data = await tmdbFetch('/discover/movie', params);
+  return {
+    ...data,
+    results: (data?.results || []).map(item => normalizeItem(item, 'movie'))
+  };
+}
+
+/**
+ * Get upcoming TV shows within a date range
+ * @param {string} startDate - Start date (YYYY-MM-DD)
+ * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {number} page - Page number
+ * @returns {Promise<Object>} Upcoming TV shows
+ */
+export async function getUpcomingTV(startDate, endDate, page = 1) {
+  const params = {
+    page,
+    sort_by: 'first_air_date.asc',
+    'first_air_date.gte': startDate,
+    'first_air_date.lte': endDate
+  };
+  
+  const data = await tmdbFetch('/discover/tv', params);
+  return {
+    ...data,
+    results: (data?.results || []).map(item => normalizeItem(item, 'tv'))
+  };
+}
+
+/**
+ * Get content by genre
+ * @param {number} genreId - Genre ID
+ * @param {string} type - 'movie' or 'tv'
+ * @param {number} page - Page number
+ * @returns {Promise<Object>} Content by genre
+ */
+export async function getByGenre(genreId, type = 'movie', page = 1) {
+  const endpoint = `/discover/${type}`;
+  const params = {
+    page,
+    sort_by: 'popularity.desc',
+    with_genres: genreId,
+    'vote_count.gte': 50
+  };
+  
+  const data = await tmdbFetch(endpoint, params);
+  return {
+    ...data,
+    results: (data?.results || []).map(item => normalizeItem(item, type))
+  };
+}
+
+/**
+ * Get similar content
+ * @param {number} id - Content ID
+ * @param {string} type - 'movie' or 'tv'
+ * @param {number} page - Page number
+ * @returns {Promise<Object>} Similar content
+ */
+export async function getSimilar(id, type = 'movie', page = 1) {
+  const data = await tmdbFetch(`/${type}/${id}/similar`, { page });
+  return {
+    ...data,
+    results: (data?.results || []).map(item => normalizeItem(item, type))
+  };
+}
+
 export default {
   getTrending,
   getPopularMovies,
@@ -381,6 +464,10 @@ export default {
   getRecommendations,
   getGenres,
   getPosterUrl,
+  getUpcomingMovies,
+  getUpcomingTV,
+  getByGenre,
+  getSimilar,
   TMDB_IMG_URL,
   TMDB_IMG_ORIGINAL
 };

@@ -1,80 +1,192 @@
 /* ========================================
-   globals.css - Global Styles & Resets
+   GLOBALS.CSS - Resets, Fonts, Root Variables
    ======================================== */
 
-/* ========== FONT IMPORTS ========== */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
-
-/* ========== CSS RESET ========== */
+/* CSS Reset */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* iOS Safari Performance Optimizations */
 html {
-  scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
+/* Root Variables */
+:root {
+  /* Colors */
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #1a1a1a;
+  --text-primary: #f5f5f5;
+  --text-secondary: #a0a0a0;
+  --accent: #d4af37;
+  --accent-hover: #b8860b;
+  --gold-light: #ffd700;
+  --gold-dark: #b8860b;
+  --border-color: rgba(212, 175, 55, 0.3);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  /* Spacing */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  
+  /* Z-Index Layers */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 1000;
+  --z-tooltip: 1500;
+  --z-cursor: 9999;
+  --z-intro: 10000;
+}
+
+/* Custom Cursors */
 body {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='gold' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23ffd700'/%3E%3Cstop offset='100%25' style='stop-color:%23d4af37'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23gold)' d='M5,2 L5,22 L10,17 L14,22 L17,20 L13,15 L19,15 Z'/%3E%3C/svg%3E") 5 2, auto;
+}
+
+a, button, [role="button"], .clickable {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%23d4af37' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ffd700'/%3E%3C/svg%3E") 16 16, pointer;
+}
+
+input, textarea, [contenteditable] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Crect x='10' y='2' width='4' height='20' fill='%23d4af37' rx='2'/%3E%3C/svg%3E") 12 12, text;
+}
+
+/* Base Body Styles */
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
   min-height: 100vh;
-  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  animation: bodyFadeIn 0.8s ease-out;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-img, picture, video, canvas, svg {
-  display: block;
+/* Repeating Diagonal Gold Pattern Background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 100px,
+    rgba(212, 175, 55, 0.02) 100px,
+    rgba(212, 175, 55, 0.02) 200px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--accent), var(--gold-dark));
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--gold-light), var(--accent));
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+/* Focus Styles */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Links */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--gold-light);
+}
+
+/* Images */
+img {
   max-width: 100%;
+  height: auto;
+  display: block;
 }
 
-input, button, textarea, select {
-  font: inherit;
-}
-
+/* Buttons Base */
 button {
-  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
   border: none;
   background: none;
-}
-
-a {
   color: inherit;
-  text-decoration: none;
 }
 
-ul, ol {
-  list-style: none;
+/* Inputs Base */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-/* ========== ROOT ========== */
-#root {
-  min-height: 100vh;
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  outline: none;
 }
 
-/* ========== APP CONTAINER ========== */
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+/* Container */
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
 }
 
-/* ========== MAIN CONTENT ========== */
-.main-content {
-  flex: 1;
-  padding-top: 140px; /* Header + Nav height */
-  padding-bottom: 60px;
-}
-
-/* ========== TYPOGRAPHY ========== */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Cinzel', serif;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-/* ========== UTILITY CLASSES ========== */
+/* Screen Reader Only */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -87,30 +199,175 @@ h1, h2, h3, h4, h5, h6 {
   border: 0;
 }
 
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
+/* Utility Classes */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
 
-/* ========== RESPONSIVE ========== */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+
+.hidden { display: none !important; }
+.visible { visibility: visible; }
+.invisible { visibility: hidden; }
+
+/* Mobile Optimizations */
 @media (max-width: 768px) {
-  .main-content {
-    padding-top: 120px;
-    padding-bottom: 40px;
+  body::before {
+    display: none; /* Disable expensive pattern on mobile */
   }
   
-  .container {
-    padding: 0 16px;
+  :root {
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
   }
 }
 
-@media (max-width: 480px) {
-  .main-content {
-    padding-top: 110px;
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   Apple Device Optimizations
+   ======================================== */
+
+/* iOS Safari GPU acceleration and scroll fixes */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Prevent rubber band scrolling issues */
+    overscroll-behavior: none;
+    /* Prevent zoom on input focus */
+    touch-action: manipulation;
   }
   
-  .container {
-    padding: 0 12px;
+  /* GPU accelerate fixed/sticky elements */
+  .nav-container,
+  .player-modal,
+  .intro-overlay,
+  .modal-backdrop {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  
+  /* Fix momentum scrolling */
+  .nav-scroll,
+  .content-grid,
+  .modal-content {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent 300ms tap delay */
+  a, button, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+  
+  /* Fix input zoom on iOS */
+  input[type="text"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* macOS Safari optimizations */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  body {
+    /* Better font rendering on Retina */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Optimize animations */
+  .content-card,
+  .nav-item,
+  .game-card,
+  .site-card {
+    will-change: transform;
+  }
+}
+
+/* iOS PWA mode */
+@media (display-mode: standalone) {
+  body {
+    /* Prevent pull-to-refresh */
+    overscroll-behavior-y: none;
+  }
+  
+  /* Safe area padding for notched devices */
+  .nav-container {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .player-modal,
+  .game-player-overlay {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fix for iOS keyboard */
+@media (max-height: 500px) and (orientation: landscape) {
+  .nav-container {
+    position: relative;
+  }
+}
+
+/* ========================================
+   TV Mode Optimizations
+   ======================================== */
+@media (min-width: 1921px) {
+  :root {
+    --spacing-sm: 1.5rem;
+    --spacing-md: 2rem;
+    --spacing-lg: 3rem;
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+  }
+  
+  body {
+    font-size: 18px;
+  }
+  
+  /* Larger focus indicators for TV */
+  :focus-visible {
+    outline-width: 4px;
+    outline-offset: 4px;
+  }
+  
+  /* Custom cursor not needed on TV */
+  body, a, button, [role="button"], .clickable {
+    cursor: default;
+  }
+}
+
+/* Print Styles */
+@media print {
+  body::before,
+  .intro-overlay,
+  .smart-clock,
+  .pip-window,
+  .cursor-trail-dot {
+    display: none !important;
   }
 }

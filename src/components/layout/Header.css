@@ -1,172 +1,305 @@
 /* ========================================
-   Header.css - MovieNights Header Styles
+   Header.css - Main Header Styles
    ======================================== */
 
 .header {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
+  z-index: 200;
+  background: linear-gradient(180deg, #0d0d0d 0%, #0a0a0a 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  animation: headerSlideDown 0.8s ease-out;
+}
+
+@keyframes headerSlideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Banner Container */
+.banner-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.banner-svg {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+
+.banner-title {
+  font-family: 'Cinzel', serif;
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: 12px;
+}
+
+.banner-subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+}
+
+/* Banner Animations */
+.accent-bar {
+  animation: accentGlow 4s ease-in-out infinite;
+}
+
+@keyframes accentGlow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.sparkle {
+  animation: elegantTwinkle 3s ease-in-out infinite;
+}
+
+@keyframes elegantTwinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* Header Actions - Positioned absolutely inside banner */
+.header-actions {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  z-index: 100;
+}
+
+/* Settings Trigger Button */
+.settings-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.05));
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 30px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.settings-trigger:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(184, 134, 11, 0.1));
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+}
+
+.settings-icon {
+  font-size: 18px;
+}
+
+.settings-label {
+  display: none;
+}
+
+.settings-arrow {
+  font-size: 10px;
+  transition: transform 0.3s ease;
+}
+
+.settings-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Settings Dropdown Menu */
+.settings-menu,
+.settings-menu-fixed {
+  min-width: 320px;
+  background: rgba(20, 20, 20, 0.98);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 8px;
+  animation: menuSlideDown 0.2s ease-out;
+  overflow: hidden;
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 10px);
   right: 0;
   z-index: 1000;
-  background: linear-gradient(180deg, rgba(13, 13, 13, 0.98) 0%, rgba(13, 13, 13, 0.95) 100%);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-color);
-  transition: all var(--transition-normal);
 }
 
-.header.scrolled {
-  background: rgba(13, 13, 13, 0.98);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+.settings-menu-fixed {
+  /* Position set via inline style */
 }
 
-.header-content {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+@keyframes menuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ========== LOGO ========== */
-.header-logo {
+.settings-item {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.logo-icon {
-  font-size: 2rem;
-  animation: float 3s ease-in-out infinite;
+.settings-item:hover {
+  background: rgba(212, 175, 55, 0.15);
+  transform: translateX(4px);
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.logo-text h1 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, var(--gold-light), var(--accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  line-height: 1;
-}
-
-.logo-tagline {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  color: var(--accent);
-  margin-top: 2px;
-}
-
-/* ========== RIGHT SECTION ========== */
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-/* Stats */
-.header-stats {
-  display: flex;
-  gap: 12px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(212, 175, 55, 0.1);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: all var(--transition-normal);
-}
-
-.stat-item:hover {
-  background: rgba(212, 175, 55, 0.2);
-  transform: translateY(-2px);
-}
-
-.stat-icon {
-  font-size: 16px;
-}
-
-.stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-/* Theme Toggle */
-.theme-toggle {
-  width: 44px;
-  height: 44px;
+.settings-item .item-icon {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(212, 175, 55, 0.1);
-  border: 1px solid var(--border-color);
-  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(184, 134, 11, 0.1));
+  border-radius: 10px;
   font-size: 20px;
-  cursor: pointer;
-  transition: all var(--transition-normal);
+  flex-shrink: 0;
 }
 
-.theme-toggle:hover {
+.settings-item .item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.settings-item .item-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-item .item-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-item.settings-danger:hover {
+  background: rgba(229, 62, 62, 0.15);
+}
+
+.settings-item.settings-danger .item-icon {
+  background: linear-gradient(135deg, rgba(229, 62, 62, 0.2), rgba(229, 62, 62, 0.1));
+}
+
+.settings-divider {
+  height: 1px;
   background: rgba(212, 175, 55, 0.2);
-  transform: rotate(15deg) scale(1.1);
-  box-shadow: var(--shadow-gold);
+  margin: 8px 12px;
 }
 
-/* ========== RESPONSIVE ========== */
+/* Responsive */
+@media (min-width: 768px) {
+  .settings-label {
+    display: inline;
+  }
+}
+
 @media (max-width: 768px) {
-  .header-content {
-    padding: 12px 16px;
+  .banner-svg {
+    height: 120px;
   }
   
-  .logo-icon {
-    font-size: 1.5rem;
+  .banner-title {
+    font-size: 28px;
+    letter-spacing: 6px;
   }
   
-  .logo-text h1 {
-    font-size: 1.2rem;
+  .banner-subtitle {
+    font-size: 9px;
+    letter-spacing: 4px;
   }
   
-  .logo-tagline {
-    font-size: 0.6rem;
-    letter-spacing: 2px;
+  .header-actions {
+    top: 12px;
+    right: 16px;
   }
   
-  .header-stats {
-    display: none;
-  }
-  
-  .theme-toggle {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+  .settings-menu,
+  .settings-menu-fixed {
+    width: 280px;
+    min-width: 280px;
   }
 }
 
 @media (max-width: 480px) {
-  .logo-text {
-    display: none;
+  .banner-svg {
+    height: 100px;
   }
   
-  .logo-icon {
-    font-size: 2rem;
+  .banner-title {
+    font-size: 22px;
+    letter-spacing: 4px;
+  }
+  
+  .banner-subtitle {
+    font-size: 7px;
+    letter-spacing: 3px;
+  }
+  
+  .header-actions {
+    top: 8px;
+    right: 12px;
+  }
+  
+  .settings-trigger {
+    padding: 8px 14px;
+  }
+  
+  .settings-menu,
+  .settings-menu-fixed {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    min-width: unset !important;
+    max-height: 70vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    animation: menuSlideUp 0.3s ease-out;
+  }
+  
+  @keyframes menuSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

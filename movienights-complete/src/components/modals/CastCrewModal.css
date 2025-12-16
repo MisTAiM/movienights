@@ -1,0 +1,69 @@
+/* ========================================
+   CastCrewModal.css - Cast & Crew Modal Styles
+   ======================================== */
+
+/* Higher z-index to appear above player modal */
+.cast-crew-modal-backdrop {
+  z-index: 1100 !important;
+}
+
+.cast-crew-modal-content {
+  z-index: 1101;
+}
+
+.credits-section {
+  margin-bottom: 32px;
+}
+
+.credits-section:last-child {
+  margin-bottom: 0;
+}
+
+.credits-section h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.cast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.crew-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.no-data {
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-message {
+  text-align: center;
+  padding: 40px;
+  color: #e53e3e;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cast-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cast-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}

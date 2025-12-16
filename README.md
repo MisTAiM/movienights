@@ -141,4 +141,4 @@ VITE_TMDB_KEY=your_api_key_here
 
 ## License
 
-MIT License - Feel free to use and modify!
+MIT License - Feel free to use and modify! 

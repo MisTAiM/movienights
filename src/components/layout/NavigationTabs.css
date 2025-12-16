@@ -1,293 +1,269 @@
 /* ========================================
-   NavigationTabs.css - Modern Clean Navigation
-   Optimized for Desktop, Mobile, TV, and Apple devices
+   NavigationTabs.css - Premium Navigation
    ======================================== */
 
-.nav-container {
+.navigation-tabs {
   position: sticky;
-  top: 0;
+  top: 80px;
   z-index: 100;
-  background: rgba(12, 12, 12, 0.95);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.12);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: top 0.3s ease;
 }
 
-.nav-scroll {
+.scrolled .navigation-tabs {
+  top: 70px;
+}
+
+.nav-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Tab Groups */
+.nav-groups {
+  display: flex;
+  gap: 32px;
+  padding: 16px 0;
   overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.nav-scroll::-webkit-scrollbar {
+.nav-groups::-webkit-scrollbar {
   display: none;
 }
 
-.nav-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 10px 16px;
-  min-width: max-content;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Navigation Groups */
 .nav-group {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: fit-content;
 }
 
-.nav-divider {
-  width: 1px;
-  height: 24px;
-  background: rgba(212, 175, 55, 0.15);
-  margin: 0 8px;
-  flex-shrink: 0;
+.nav-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  padding-left: 4px;
 }
 
-/* Navigation Items */
-.nav-item {
+.nav-group-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+/* Individual Tabs */
+.nav-tab {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 8px;
+  padding: 10px 18px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
-  /* Apple optimization - use transform for GPU acceleration */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.nav-item:hover {
-  color: rgba(255, 255, 255, 0.9);
+/* Shine effect on hover */
+.nav-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.nav-tab:hover::before {
+  left: 100%;
+}
+
+.nav-tab:hover {
+  color: var(--text-primary);
   background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
-.nav-item.active {
-  color: var(--accent);
-  background: rgba(212, 175, 55, 0.1);
-  border-color: rgba(212, 175, 55, 0.25);
+.nav-tab.active {
+  color: var(--accent-light);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.1));
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.2);
 }
 
-/* Focus state for TV/Keyboard navigation */
-.nav-item.focused,
-.nav-item:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent);
-  color: #fff;
-  background: rgba(212, 175, 55, 0.15);
+/* Active indicator line */
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
 }
 
-.nav-item-icon {
+.nav-tab-icon {
   font-size: 16px;
-  line-height: 1;
 }
 
-.nav-item-label {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  letter-spacing: 0.01em;
+.nav-tab-text {
+  white-space: nowrap;
 }
 
-/* ========================================
-   Responsive Breakpoints
-   ======================================== */
+/* Mobile Navigation */
+.mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
 
-/* Tablet */
+.mobile-nav-toggle:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: var(--accent);
+}
+
+/* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
-  .nav-inner {
-    justify-content: flex-start;
-    padding: 8px 12px;
+  .nav-groups {
+    gap: 24px;
   }
   
-  .nav-item {
-    padding: 8px 12px;
+  .nav-tab {
+    padding: 8px 14px;
     font-size: 12px;
   }
-  
-  .nav-divider {
-    margin: 0 6px;
-    height: 20px;
-  }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
+  .navigation-tabs {
+    top: 70px;
+  }
+  
+  .scrolled .navigation-tabs {
+    top: 60px;
+  }
+  
   .nav-container {
-    border-bottom-color: rgba(212, 175, 55, 0.08);
+    padding: 0 16px;
   }
   
-  .nav-inner {
-    gap: 2px;
-    padding: 6px 8px;
+  .nav-groups {
+    gap: 16px;
+    padding: 12px 0;
   }
   
-  .nav-group {
-    gap: 1px;
+  .nav-group-label {
+    display: none;
   }
   
-  .nav-item {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 10px;
-    border-radius: 6px;
-  }
-  
-  .nav-item-icon {
-    font-size: 18px;
-  }
-  
-  .nav-item-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-  }
-  
-  .nav-divider {
-    height: 32px;
-    margin: 0 4px;
-  }
-}
-
-/* Small Mobile */
-@media (max-width: 480px) {
-  .nav-item {
-    padding: 5px 8px;
-  }
-  
-  .nav-item-icon {
-    font-size: 16px;
-  }
-  
-  .nav-item-label {
-    font-size: 8px;
-  }
-  
-  .nav-divider {
-    margin: 0 2px;
-  }
-}
-
-/* ========================================
-   TV / Large Screen Mode (1920px+)
-   ======================================== */
-@media (min-width: 1440px) {
-  .nav-inner {
-    gap: 6px;
-    padding: 14px 24px;
-  }
-  
-  .nav-item {
-    padding: 12px 20px;
-    gap: 8px;
-    font-size: 15px;
+  .nav-tab {
+    padding: 8px 12px;
     border-radius: 10px;
   }
   
-  .nav-item-icon {
-    font-size: 20px;
+  .nav-tab-text {
+    display: none;
   }
   
-  .nav-divider {
-    height: 28px;
-    margin: 0 12px;
-  }
-}
-
-/* TV Mode - Extra large focus states */
-@media (min-width: 1921px) {
-  .nav-container {
-    padding: 8px 0;
-  }
-  
-  .nav-inner {
-    gap: 8px;
-    padding: 16px 32px;
-  }
-  
-  .nav-item {
-    padding: 16px 28px;
-    gap: 10px;
+  .nav-tab-icon {
     font-size: 18px;
-    border-radius: 12px;
-    border-width: 2px;
-  }
-  
-  .nav-item-icon {
-    font-size: 26px;
-  }
-  
-  .nav-item.focused,
-  .nav-item:focus-visible {
-    box-shadow: 0 0 0 4px var(--accent);
-    transform: scale(1.05);
-  }
-  
-  .nav-divider {
-    height: 36px;
-    width: 2px;
-    margin: 0 16px;
   }
 }
 
-/* ========================================
-   Apple Device Optimizations
-   ======================================== */
-
-/* Reduce motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-  .nav-item {
-    transition: none;
+@media (max-width: 480px) {
+  .nav-groups {
+    gap: 8px;
+  }
+  
+  .nav-group-tabs {
+    gap: 4px;
+  }
+  
+  .nav-tab {
+    padding: 10px;
+    min-width: 44px;
+    justify-content: center;
   }
 }
 
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .nav-container {
-    /* Fix for iOS scroll bounce */
-    position: -webkit-sticky;
-    position: sticky;
-  }
-  
-  .nav-scroll {
-    /* Momentum scrolling */
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .nav-item {
-    /* Prevent text size adjustment */
-    -webkit-text-size-adjust: 100%;
-  }
+/* ========== SPECIAL TAB STYLES ========== */
+/* Premium/Featured tabs */
+.nav-tab[data-featured="true"] {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+  border-color: rgba(251, 191, 36, 0.3);
 }
 
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .nav-item.active {
-    border-color: var(--accent);
-    border-width: 2px;
-  }
-  
-  .nav-divider {
-    background: rgba(255, 255, 255, 0.3);
-  }
+.nav-tab[data-featured="true"]:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15));
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.2);
 }
 
-/* Dark mode optimization (default) */
-@media (prefers-color-scheme: dark) {
-  .nav-container {
-    background: rgba(8, 8, 8, 0.98);
-  }
+.nav-tab[data-featured="true"].active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15));
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.3);
+  color: var(--gold-light);
+}
+
+/* New/Beta badge */
+.nav-tab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--gradient-secondary);
+  color: white;
+  border-radius: 6px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Notification dot */
+.nav-tab-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--error);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--error-glow);
 }

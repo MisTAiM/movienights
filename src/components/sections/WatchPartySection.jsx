@@ -1,5 +1,6 @@
 /* ========================================
    WatchPartySection.jsx - Watch Party with Firebase Real-time Sync
+   Complete Production-Ready Version
    ======================================== */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { generateRoomCode, generateUserId } from '../../utils/helpers';
 import './WatchPartySection.css';
 
 // Firebase imports
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { 
   getDatabase, 
   ref, 
@@ -19,7 +20,7 @@ import {
   off, 
   update, 
   remove,
-  serverTimestamp 
+  onDisconnect
 } from 'firebase/database';
 
 // Firebase Configuration
@@ -33,9 +34,23 @@ const firebaseConfig = {
   appId: "1:314294618696:web:2a458d63bcabc85a49267d"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+// Initialize Firebase (prevent duplicate initialization)
+let app;
+let database;
+
+try {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    console.log('🔥 Firebase initialized successfully');
+  } else {
+    app = getApps()[0];
+    console.log('🔥 Firebase already initialized, using existing instance');
+  }
+  database = getDatabase(app);
+  console.log('📍 Database URL:', firebaseConfig.databaseURL);
+} catch (error) {
+  console.error('❌ Firebase initialization error:', error);
+}
 
 function WatchPartySection() {
   const { state, actions } = useApp();
@@ -48,6 +63,7 @@ function WatchPartySection() {
   const [roomData, setRoomData] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [username, setUsername] = useState(() => localStorage.getItem('watchparty_username') || '');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Video state
   const [videoUrl, setVideoUrl] = useState('');
@@ -60,16 +76,44 @@ function WatchPartySection() {
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
+  // Connection state
+  const [isConnected, setIsConnected] = useState(false);
+  
   // Refs
   const iframeRef = useRef(null);
   const chatEndRef = useRef(null);
   const userId = useRef(generateUserId());
-  const roomRef = useRef(null);
-  const participantsRef = useRef(null);
-  const messagesRef = useRef(null);
+  const roomListenerRef = useRef(null);
+  const participantsListenerRef = useRef(null);
+  const messagesListenerRef = useRef(null);
 
   // Quick reactions
   const quickReactions = ['😂', '😮', '😢', '😍', '🔥', '👏', '💀', '🎬'];
+
+  // Test Firebase connection on mount
+  useEffect(() => {
+    const testConnection = async () => {
+      if (!database) {
+        console.error('❌ Database not initialized');
+        setIsConnected(false);
+        return;
+      }
+      
+      try {
+        const testRef = ref(database, '.info/connected');
+        onValue(testRef, (snapshot) => {
+          const connected = snapshot.val() === true;
+          setIsConnected(connected);
+          console.log(connected ? '✅ Firebase connected' : '⚠️ Firebase disconnected');
+        });
+      } catch (error) {
+        console.error('❌ Connection test failed:', error);
+        setIsConnected(false);
+      }
+    };
+    
+    testConnection();
+  }, []);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -79,73 +123,135 @@ function WatchPartySection() {
   // Cleanup Firebase listeners on unmount
   useEffect(() => {
     return () => {
-      if (roomRef.current) off(roomRef.current);
-      if (participantsRef.current) off(participantsRef.current);
-      if (messagesRef.current) off(messagesRef.current);
+      cleanupListeners();
     };
   }, []);
 
+  // Cleanup function for Firebase listeners
+  const cleanupListeners = () => {
+    if (roomListenerRef.current) {
+      off(roomListenerRef.current);
+      roomListenerRef.current = null;
+    }
+    if (participantsListenerRef.current) {
+      off(participantsListenerRef.current);
+      participantsListenerRef.current = null;
+    }
+    if (messagesListenerRef.current) {
+      off(messagesListenerRef.current);
+      messagesListenerRef.current = null;
+    }
+    console.log('🧹 Firebase listeners cleaned up');
+  };
+
   // Setup Firebase listeners when in room
   useEffect(() => {
-    if (!isInRoom || !roomCode) return;
+    if (!isInRoom || !roomCode || !database) return;
+
+    console.log(`📡 Setting up listeners for room: ${roomCode}`);
 
     // Reference to room data
-    roomRef.current = ref(database, `rooms/${roomCode}`);
-    participantsRef.current = ref(database, `rooms/${roomCode}/participants`);
-    messagesRef.current = ref(database, `rooms/${roomCode}/messages`);
+    const roomRefPath = ref(database, `rooms/${roomCode}`);
+    const participantsRefPath = ref(database, `rooms/${roomCode}/participants`);
+    const messagesRefPath = ref(database, `rooms/${roomCode}/messages`);
+
+    // Store refs for cleanup
+    roomListenerRef.current = roomRefPath;
+    participantsListenerRef.current = participantsRefPath;
+    messagesListenerRef.current = messagesRefPath;
 
     // Listen for room updates
-    const roomListener = onValue(roomRef.current, (snapshot) => {
+    onValue(roomRefPath, (snapshot) => {
       const data = snapshot.val();
       if (data) {
+        console.log('📦 Room data updated');
         setRoomData(data);
         if (!isHost) {
           // Sync video state from host
-          if (data.videoUrl !== videoUrl) {
+          if (data.videoUrl !== undefined && data.videoUrl !== videoUrl) {
+            console.log('🎬 Video URL synced:', data.videoUrl);
             setVideoUrl(data.videoUrl || '');
           }
           setIsPlaying(data.isPlaying || false);
           setCurrentTime(data.currentTime || 0);
         }
+      } else {
+        console.log('⚠️ Room data is null - room may have been deleted');
+        // Room was deleted, kick user back to lobby
+        if (isInRoom && !isHost) {
+          handleRoomDeleted();
+        }
       }
+    }, (error) => {
+      console.error('❌ Room listener error:', error);
     });
 
     // Listen for participants updates
-    const participantsListener = onValue(participantsRef.current, (snapshot) => {
+    onValue(participantsRefPath, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const participantsList = Object.values(data);
+        console.log(`👥 Participants updated: ${participantsList.length} users`);
         setParticipants(participantsList);
+      } else {
+        setParticipants([]);
       }
+    }, (error) => {
+      console.error('❌ Participants listener error:', error);
     });
 
     // Listen for messages
-    const messagesListener = onValue(messagesRef.current, (snapshot) => {
+    onValue(messagesRefPath, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const messagesList = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+        console.log(`💬 Messages updated: ${messagesList.length} messages`);
         setMessages(messagesList);
+      } else {
+        setMessages([]);
       }
+    }, (error) => {
+      console.error('❌ Messages listener error:', error);
     });
 
-    // Cleanup listeners
+    // Cleanup listeners on unmount or room change
     return () => {
-      off(roomRef.current);
-      off(participantsRef.current);
-      off(messagesRef.current);
+      cleanupListeners();
     };
   }, [isInRoom, roomCode, isHost]);
 
+  // Handle room deletion
+  const handleRoomDeleted = () => {
+    cleanupListeners();
+    setRoomCode('');
+    setJoinCode('');
+    setIsHost(false);
+    setIsInRoom(false);
+    setRoomData(null);
+    setParticipants([]);
+    setMessages([]);
+    setVideoUrl('');
+    setSelectedContent(null);
+    actions.addNotification('The room has been closed by the host', 'info');
+  };
+
   // Create a new room
   const createRoom = async () => {
+    if (!database) {
+      actions.addNotification('Firebase not connected. Please refresh the page.', 'error');
+      return;
+    }
+    
     if (!username.trim()) {
       actions.addNotification('Please enter a username first', 'warning');
       return;
     }
     
+    setIsLoading(true);
     localStorage.setItem('watchparty_username', username);
     
     const code = generateRoomCode();
+    console.log(`🎬 Creating room: ${code}`);
     
     try {
       // Create room in Firebase
@@ -159,6 +265,7 @@ function WatchPartySection() {
         isPlaying: false,
         currentTime: 0
       });
+      console.log('✅ Room data written to Firebase');
 
       // Add host as participant
       const participantRef = ref(database, `rooms/${code}/participants/${userId.current}`);
@@ -168,6 +275,11 @@ function WatchPartySection() {
         isHost: true,
         joinedAt: Date.now()
       });
+      console.log('✅ Host added as participant');
+
+      // Set up disconnect handler to clean up when host disconnects
+      const participantOnDisconnect = onDisconnect(participantRef);
+      await participantOnDisconnect.remove();
 
       setRoomCode(code);
       setIsHost(true);
@@ -175,17 +287,25 @@ function WatchPartySection() {
       setParticipants([{ id: userId.current, name: username, isHost: true }]);
       
       actions.addNotification(`Room created! Code: ${code}`, 'success');
+      console.log(`🎉 Room ${code} created successfully`);
       
       // Add system message
       await addSystemMessage(code, `${username} created the room`);
     } catch (error) {
-      console.error('Error creating room:', error);
-      actions.addNotification('Failed to create room. Please try again.', 'error');
+      console.error('❌ Error creating room:', error);
+      actions.addNotification(`Failed to create room: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Join an existing room
   const joinRoom = async () => {
+    if (!database) {
+      actions.addNotification('Firebase not connected. Please refresh the page.', 'error');
+      return;
+    }
+    
     if (!username.trim()) {
       actions.addNotification('Please enter a username first', 'warning');
       return;
@@ -196,9 +316,11 @@ function WatchPartySection() {
       return;
     }
     
+    setIsLoading(true);
     localStorage.setItem('watchparty_username', username);
     
-    const code = joinCode.toUpperCase();
+    const code = joinCode.toUpperCase().trim();
+    console.log(`🔗 Attempting to join room: ${code}`);
     
     try {
       // Check if room exists
@@ -206,11 +328,14 @@ function WatchPartySection() {
       const snapshot = await get(roomRefPath);
       
       if (!snapshot.exists()) {
+        console.log(`❌ Room ${code} not found`);
         actions.addNotification('Room not found. Check the code and try again.', 'error');
+        setIsLoading(false);
         return;
       }
       
       const room = snapshot.val();
+      console.log(`✅ Room found! Host: ${room.hostName}`);
       
       // Add self to participants
       const participantRef = ref(database, `rooms/${code}/participants/${userId.current}`);
@@ -220,6 +345,11 @@ function WatchPartySection() {
         isHost: false,
         joinedAt: Date.now()
       });
+      console.log('✅ Added as participant');
+
+      // Set up disconnect handler
+      const participantOnDisconnect = onDisconnect(participantRef);
+      await participantOnDisconnect.remove();
       
       setRoomCode(code);
       setIsHost(false);
@@ -230,32 +360,44 @@ function WatchPartySection() {
       setRoomData(room);
       
       actions.addNotification(`Joined room ${code}!`, 'success');
+      console.log(`🎉 Successfully joined room ${code}`);
+      
       await addSystemMessage(code, `${username} joined the room`);
     } catch (error) {
-      console.error('Error joining room:', error);
-      actions.addNotification('Failed to join room. Please try again.', 'error');
+      console.error('❌ Error joining room:', error);
+      actions.addNotification(`Failed to join room: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Leave room
   const leaveRoom = async () => {
-    if (roomCode) {
+    console.log(`🚪 Leaving room: ${roomCode}`);
+    
+    if (roomCode && database) {
       try {
         // Remove self from participants
         const participantRef = ref(database, `rooms/${roomCode}/participants/${userId.current}`);
         await remove(participantRef);
+        console.log('✅ Removed from participants');
         
-        // If host leaves, delete the room
+        // If host leaves, delete the entire room
         if (isHost) {
+          console.log('👑 Host leaving - deleting room');
           const roomRefPath = ref(database, `rooms/${roomCode}`);
           await remove(roomRefPath);
+          console.log('✅ Room deleted');
         } else {
           await addSystemMessage(roomCode, `${username} left the room`);
         }
       } catch (error) {
-        console.error('Error leaving room:', error);
+        console.error('❌ Error leaving room:', error);
       }
     }
+    
+    // Cleanup listeners
+    cleanupListeners();
     
     // Clear local state
     setRoomCode('');
@@ -273,21 +415,27 @@ function WatchPartySection() {
 
   // Add system message
   const addSystemMessage = async (code, text) => {
-    const messagesRefPath = ref(database, `rooms/${code}/messages`);
-    const newMessageRef = push(messagesRefPath);
-    await set(newMessageRef, {
-      id: newMessageRef.key,
-      type: 'system',
-      text,
-      timestamp: Date.now()
-    });
+    if (!database) return;
+    
+    try {
+      const messagesRefPath = ref(database, `rooms/${code}/messages`);
+      const newMessageRef = push(messagesRefPath);
+      await set(newMessageRef, {
+        id: newMessageRef.key,
+        type: 'system',
+        text,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ Error adding system message:', error);
+    }
   };
 
   // Send chat message
   const sendMessage = async (e) => {
     e?.preventDefault();
     
-    if (!newMessage.trim() || !roomCode) return;
+    if (!newMessage.trim() || !roomCode || !database) return;
     
     try {
       const messagesRefPath = ref(database, `rooms/${roomCode}/messages`);
@@ -303,14 +451,14 @@ function WatchPartySection() {
       
       setNewMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
       actions.addNotification('Failed to send message', 'error');
     }
   };
 
   // Send reaction
   const sendReaction = async (emoji) => {
-    if (!roomCode) return;
+    if (!roomCode || !database) return;
     
     try {
       const messagesRefPath = ref(database, `rooms/${roomCode}/messages`);
@@ -324,13 +472,13 @@ function WatchPartySection() {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error sending reaction:', error);
+      console.error('❌ Error sending reaction:', error);
     }
   };
 
   // Sync video state (host only)
   const syncVideoState = useCallback(async (playing, time, url = videoUrl) => {
-    if (!roomCode || !isHost) return;
+    if (!roomCode || !isHost || !database) return;
     
     try {
       const roomRefPath = ref(database, `rooms/${roomCode}`);
@@ -339,8 +487,9 @@ function WatchPartySection() {
         currentTime: time,
         videoUrl: url
       });
+      console.log('📡 Video state synced');
     } catch (error) {
-      console.error('Error syncing video state:', error);
+      console.error('❌ Error syncing video state:', error);
     }
   }, [roomCode, isHost, videoUrl]);
 
@@ -398,6 +547,29 @@ function WatchPartySection() {
         </div>
 
         <div className="watch-party-lobby">
+          {/* Connection Status */}
+          <div className="connection-status" style={{
+            padding: '10px 15px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            background: isConnected ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)',
+            border: `1px solid ${isConnected ? '#00ff00' : '#ff0000'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: isConnected ? '#00ff00' : '#ff0000',
+              animation: isConnected ? 'none' : 'pulse 1s infinite'
+            }}></span>
+            <span style={{ color: isConnected ? '#00ff00' : '#ff6666' }}>
+              {isConnected ? '✅ Connected to server' : '⚠️ Connecting to server...'}
+            </span>
+          </div>
+
           {/* Username Input */}
           <div className="lobby-card username-card">
             <h3>👤 Your Name</h3>
@@ -417,8 +589,12 @@ function WatchPartySection() {
               <div className="card-icon">🎬</div>
               <h3>Create a Room</h3>
               <p>Start a new watch party and invite friends</p>
-              <button className="lobby-btn create-btn" onClick={createRoom}>
-                Create Room
+              <button 
+                className="lobby-btn create-btn" 
+                onClick={createRoom}
+                disabled={isLoading || !isConnected}
+              >
+                {isLoading ? '⏳ Creating...' : 'Create Room'}
               </button>
             </div>
 
@@ -435,8 +611,12 @@ function WatchPartySection() {
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
               />
-              <button className="lobby-btn join-btn" onClick={joinRoom}>
-                Join Room
+              <button 
+                className="lobby-btn join-btn" 
+                onClick={joinRoom}
+                disabled={isLoading || !isConnected}
+              >
+                {isLoading ? '⏳ Joining...' : 'Join Room'}
               </button>
             </div>
           </div>

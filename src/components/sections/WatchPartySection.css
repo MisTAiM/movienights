@@ -1,6 +1,12 @@
 /* ========================================
-   WatchPartySection.css - Watch Party Styles
+   WatchPartySection.css - Watch Party Styles (Firebase)
    ======================================== */
+
+.wp-subtitle {
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 1rem;
+  margin-left: 16px;
+}
 
 /* ========== LOBBY ========== */
 .wp-lobby {
@@ -916,5 +922,279 @@
   .wp-feature {
     padding: 10px 14px;
     font-size: 13px;
+  }
+}
+
+/* ========== FIREBASE SPECIFIC STYLES ========== */
+
+.wp-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  color: #4ade80;
+  font-size: 14px;
+}
+
+.wp-status-bar.error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.wp-status-dot {
+  width: 10px;
+  height: 10px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.wp-status-dot.error {
+  background: #ef4444;
+}
+
+/* Features Section */
+.wp-features {
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.6), rgba(20, 20, 20, 0.8));
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.wp-features h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-light, #ffd700);
+  text-align: center;
+  margin: 0 0 20px 0;
+}
+
+.wp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.wp-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.wp-feature span:first-child {
+  font-size: 1.8rem;
+}
+
+.wp-feature strong {
+  color: var(--text-primary, #fff);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.wp-feature p {
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Setup Instructions */
+.wp-instructions {
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.6), rgba(20, 20, 20, 0.8));
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.wp-instructions h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-light, #ffd700);
+  text-align: center;
+  margin: 0 0 16px 0;
+}
+
+.wp-instructions > p {
+  color: var(--text-secondary, #a0a0a0);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.wp-instructions code {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--accent, #d4af37);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.wp-code-block {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--text-primary, #fff);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0 0 16px 0;
+}
+
+.wp-setup-note {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #60a5fa;
+  font-size: 13px;
+  text-align: center;
+  margin: 0;
+}
+
+/* Connected Badge */
+.wp-connected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 20px;
+  color: #4ade80;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 12px;
+}
+
+/* Room Actions */
+.wp-btn-action {
+  background: rgba(212, 175, 55, 0.15) !important;
+  color: var(--accent, #d4af37) !important;
+  border: 1px solid rgba(212, 175, 55, 0.3) !important;
+}
+
+.wp-btn-action:hover {
+  background: rgba(212, 175, 55, 0.25) !important;
+}
+
+/* Play Button */
+.wp-btn-play {
+  min-width: 120px;
+}
+
+.wp-btn-play.playing {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Sync Status */
+.wp-sync-status {
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 13px;
+}
+
+/* Controller Overlay */
+.wp-controller-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
+  color: var(--accent, #d4af37);
+  font-size: 13px;
+  z-index: 10;
+}
+
+/* Participants List */
+.wp-participants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-participants-label {
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.wp-mini-remote {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+/* Modal Improvements */
+.wp-user-name {
+  flex: 1;
+  text-align: left;
+}
+
+.wp-host-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 10px;
+  color: var(--accent, #d4af37);
+}
+
+.wp-no-users {
+  text-align: center;
+  color: var(--text-secondary, #a0a0a0);
+  padding: 20px;
+}
+
+/* Chat Improvements */
+.wp-no-messages {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.wp-msg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.wp-msg-time {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.wp-online-count {
+  font-size: 12px;
+  color: #4ade80;
+}
+
+/* Placeholder Icon */
+.wp-placeholder-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* Responsive for Features */
+@media (max-width: 600px) {
+  .wp-features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .wp-code-block {
+    font-size: 10px;
   }
 }

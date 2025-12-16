@@ -1,5 +1,5 @@
 /* ========================================
-   WatchPartySection.jsx - Watch Party with Real-time Sync
+   WatchPartySection.jsx - Watch Party with Firebase Real-time Sync
    ======================================== */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -7,8 +7,35 @@ import { useApp } from '../../context/AppContext';
 import { generateRoomCode, generateUserId } from '../../utils/helpers';
 import './WatchPartySection.css';
 
-// Simulated WebRTC/WebSocket sync (in production, use Firebase, Socket.io, or WebRTC)
-const SYNC_INTERVAL = 1000; // Sync every second
+// Firebase imports
+import { initializeApp } from 'firebase/app';
+import { 
+  getDatabase, 
+  ref, 
+  set, 
+  get,
+  push,
+  onValue, 
+  off, 
+  update, 
+  remove,
+  serverTimestamp 
+} from 'firebase/database';
+
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBdek4iW7U4ScbS_eV5vKQF9Gwqi77P8Wc",
+  authDomain: "movienights-party.firebaseapp.com",
+  databaseURL: "https://movienights-party-default-rtdb.firebaseio.com",
+  projectId: "movienights-party",
+  storageBucket: "movienights-party.firebasestorage.app",
+  messagingSenderId: "314294618696",
+  appId: "1:314294618696:web:2a458d63bcabc85a49267d"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
 function WatchPartySection() {
   const { state, actions } = useApp();
@@ -36,8 +63,10 @@ function WatchPartySection() {
   // Refs
   const iframeRef = useRef(null);
   const chatEndRef = useRef(null);
-  const syncIntervalRef = useRef(null);
   const userId = useRef(generateUserId());
+  const roomRef = useRef(null);
+  const participantsRef = useRef(null);
+  const messagesRef = useRef(null);
 
   // Quick reactions
   const quickReactions = ['😂', '😮', '😢', '😍', '🔥', '👏', '💀', '🎬'];
@@ -47,8 +76,68 @@ function WatchPartySection() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup Firebase listeners on unmount
+  useEffect(() => {
+    return () => {
+      if (roomRef.current) off(roomRef.current);
+      if (participantsRef.current) off(participantsRef.current);
+      if (messagesRef.current) off(messagesRef.current);
+    };
+  }, []);
+
+  // Setup Firebase listeners when in room
+  useEffect(() => {
+    if (!isInRoom || !roomCode) return;
+
+    // Reference to room data
+    roomRef.current = ref(database, `rooms/${roomCode}`);
+    participantsRef.current = ref(database, `rooms/${roomCode}/participants`);
+    messagesRef.current = ref(database, `rooms/${roomCode}/messages`);
+
+    // Listen for room updates
+    const roomListener = onValue(roomRef.current, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setRoomData(data);
+        if (!isHost) {
+          // Sync video state from host
+          if (data.videoUrl !== videoUrl) {
+            setVideoUrl(data.videoUrl || '');
+          }
+          setIsPlaying(data.isPlaying || false);
+          setCurrentTime(data.currentTime || 0);
+        }
+      }
+    });
+
+    // Listen for participants updates
+    const participantsListener = onValue(participantsRef.current, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const participantsList = Object.values(data);
+        setParticipants(participantsList);
+      }
+    });
+
+    // Listen for messages
+    const messagesListener = onValue(messagesRef.current, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const messagesList = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+        setMessages(messagesList);
+      }
+    });
+
+    // Cleanup listeners
+    return () => {
+      off(roomRef.current);
+      off(participantsRef.current);
+      off(messagesRef.current);
+    };
+  }, [isInRoom, roomCode, isHost]);
+
   // Create a new room
-  const createRoom = () => {
+  const createRoom = async () => {
     if (!username.trim()) {
       actions.addNotification('Please enter a username first', 'warning');
       return;
@@ -57,40 +146,46 @@ function WatchPartySection() {
     localStorage.setItem('watchparty_username', username);
     
     const code = generateRoomCode();
-    setRoomCode(code);
-    setIsHost(true);
-    setIsInRoom(true);
-    setParticipants([{ id: userId.current, name: username, isHost: true }]);
-    setRoomData({
-      code,
-      host: userId.current,
-      created: Date.now(),
-      videoUrl: '',
-      isPlaying: false,
-      currentTime: 0
-    });
     
-    // Store room in localStorage for demo (in production, use a backend)
-    const roomInfo = {
-      code,
-      host: userId.current,
-      hostName: username,
-      participants: [{ id: userId.current, name: username, isHost: true }],
-      messages: [],
-      videoUrl: '',
-      isPlaying: false,
-      currentTime: 0
-    };
-    localStorage.setItem(`watchparty_${code}`, JSON.stringify(roomInfo));
-    
-    actions.addNotification(`Room created! Code: ${code}`, 'success');
-    
-    // Add system message
-    addSystemMessage(`${username} created the room`);
+    try {
+      // Create room in Firebase
+      const roomRefPath = ref(database, `rooms/${code}`);
+      await set(roomRefPath, {
+        code,
+        host: userId.current,
+        hostName: username,
+        created: Date.now(),
+        videoUrl: '',
+        isPlaying: false,
+        currentTime: 0
+      });
+
+      // Add host as participant
+      const participantRef = ref(database, `rooms/${code}/participants/${userId.current}`);
+      await set(participantRef, {
+        id: userId.current,
+        name: username,
+        isHost: true,
+        joinedAt: Date.now()
+      });
+
+      setRoomCode(code);
+      setIsHost(true);
+      setIsInRoom(true);
+      setParticipants([{ id: userId.current, name: username, isHost: true }]);
+      
+      actions.addNotification(`Room created! Code: ${code}`, 'success');
+      
+      // Add system message
+      await addSystemMessage(code, `${username} created the room`);
+    } catch (error) {
+      console.error('Error creating room:', error);
+      actions.addNotification('Failed to create room. Please try again.', 'error');
+    }
   };
 
   // Join an existing room
-  const joinRoom = () => {
+  const joinRoom = async () => {
     if (!username.trim()) {
       actions.addNotification('Please enter a username first', 'warning');
       return;
@@ -103,51 +198,66 @@ function WatchPartySection() {
     
     localStorage.setItem('watchparty_username', username);
     
-    // Try to find room (demo using localStorage)
-    const roomInfo = localStorage.getItem(`watchparty_${joinCode.toUpperCase()}`);
+    const code = joinCode.toUpperCase();
     
-    if (!roomInfo) {
-      actions.addNotification('Room not found. Check the code and try again.', 'error');
-      return;
+    try {
+      // Check if room exists
+      const roomRefPath = ref(database, `rooms/${code}`);
+      const snapshot = await get(roomRefPath);
+      
+      if (!snapshot.exists()) {
+        actions.addNotification('Room not found. Check the code and try again.', 'error');
+        return;
+      }
+      
+      const room = snapshot.val();
+      
+      // Add self to participants
+      const participantRef = ref(database, `rooms/${code}/participants/${userId.current}`);
+      await set(participantRef, {
+        id: userId.current,
+        name: username,
+        isHost: false,
+        joinedAt: Date.now()
+      });
+      
+      setRoomCode(code);
+      setIsHost(false);
+      setIsInRoom(true);
+      setVideoUrl(room.videoUrl || '');
+      setIsPlaying(room.isPlaying || false);
+      setCurrentTime(room.currentTime || 0);
+      setRoomData(room);
+      
+      actions.addNotification(`Joined room ${code}!`, 'success');
+      await addSystemMessage(code, `${username} joined the room`);
+    } catch (error) {
+      console.error('Error joining room:', error);
+      actions.addNotification('Failed to join room. Please try again.', 'error');
     }
-    
-    const room = JSON.parse(roomInfo);
-    
-    // Add self to participants
-    const newParticipant = { id: userId.current, name: username, isHost: false };
-    room.participants.push(newParticipant);
-    localStorage.setItem(`watchparty_${joinCode.toUpperCase()}`, JSON.stringify(room));
-    
-    setRoomCode(joinCode.toUpperCase());
-    setIsHost(false);
-    setIsInRoom(true);
-    setParticipants(room.participants);
-    setMessages(room.messages || []);
-    setVideoUrl(room.videoUrl || '');
-    setIsPlaying(room.isPlaying || false);
-    setCurrentTime(room.currentTime || 0);
-    setRoomData(room);
-    
-    actions.addNotification(`Joined room ${joinCode.toUpperCase()}!`, 'success');
-    addSystemMessage(`${username} joined the room`);
   };
 
   // Leave room
-  const leaveRoom = () => {
+  const leaveRoom = async () => {
     if (roomCode) {
-      const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-      if (roomInfo) {
-        const room = JSON.parse(roomInfo);
-        room.participants = room.participants.filter(p => p.id !== userId.current);
+      try {
+        // Remove self from participants
+        const participantRef = ref(database, `rooms/${roomCode}/participants/${userId.current}`);
+        await remove(participantRef);
         
-        if (room.participants.length === 0) {
-          localStorage.removeItem(`watchparty_${roomCode}`);
+        // If host leaves, delete the room
+        if (isHost) {
+          const roomRefPath = ref(database, `rooms/${roomCode}`);
+          await remove(roomRefPath);
         } else {
-          localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+          await addSystemMessage(roomCode, `${username} left the room`);
         }
+      } catch (error) {
+        console.error('Error leaving room:', error);
       }
     }
     
+    // Clear local state
     setRoomCode('');
     setJoinCode('');
     setIsHost(false);
@@ -158,148 +268,107 @@ function WatchPartySection() {
     setVideoUrl('');
     setSelectedContent(null);
     
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
-    
     actions.addNotification('Left the room', 'info');
   };
 
   // Add system message
-  const addSystemMessage = (text) => {
-    const msg = {
-      id: Date.now(),
+  const addSystemMessage = async (code, text) => {
+    const messagesRefPath = ref(database, `rooms/${code}/messages`);
+    const newMessageRef = push(messagesRefPath);
+    await set(newMessageRef, {
+      id: newMessageRef.key,
       type: 'system',
       text,
       timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
+    });
   };
 
   // Send chat message
-  const sendMessage = (e) => {
+  const sendMessage = async (e) => {
     e?.preventDefault();
     
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !roomCode) return;
     
-    const msg = {
-      id: Date.now(),
-      type: 'chat',
-      userId: userId.current,
-      username,
-      text: newMessage,
-      timestamp: Date.now()
-    };
-    
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
-    setNewMessage('');
+    try {
+      const messagesRefPath = ref(database, `rooms/${roomCode}/messages`);
+      const newMessageRef = push(messagesRefPath);
+      await set(newMessageRef, {
+        id: newMessageRef.key,
+        type: 'chat',
+        userId: userId.current,
+        username,
+        text: newMessage,
+        timestamp: Date.now()
+      });
+      
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      actions.addNotification('Failed to send message', 'error');
+    }
   };
 
   // Send reaction
-  const sendReaction = (emoji) => {
-    const msg = {
-      id: Date.now(),
-      type: 'reaction',
-      userId: userId.current,
-      username,
-      text: emoji,
-      timestamp: Date.now()
-    };
-    
-    setMessages(prev => [...prev, msg]);
-    syncMessages([...messages, msg]);
-  };
-
-  // Sync messages to "server" (localStorage for demo)
-  const syncMessages = (msgs) => {
+  const sendReaction = async (emoji) => {
     if (!roomCode) return;
-    const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-    if (roomInfo) {
-      const room = JSON.parse(roomInfo);
-      room.messages = msgs;
-      localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+    
+    try {
+      const messagesRefPath = ref(database, `rooms/${roomCode}/messages`);
+      const newMessageRef = push(messagesRefPath);
+      await set(newMessageRef, {
+        id: newMessageRef.key,
+        type: 'reaction',
+        userId: userId.current,
+        username,
+        text: emoji,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error sending reaction:', error);
     }
   };
 
-  // Sync video state
-  const syncVideoState = useCallback((playing, time) => {
+  // Sync video state (host only)
+  const syncVideoState = useCallback(async (playing, time, url = videoUrl) => {
     if (!roomCode || !isHost) return;
     
-    const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-    if (roomInfo) {
-      const room = JSON.parse(roomInfo);
-      room.isPlaying = playing;
-      room.currentTime = time;
-      room.videoUrl = videoUrl;
-      localStorage.setItem(`watchparty_${roomCode}`, JSON.stringify(room));
+    try {
+      const roomRefPath = ref(database, `rooms/${roomCode}`);
+      await update(roomRefPath, {
+        isPlaying: playing,
+        currentTime: time,
+        videoUrl: url
+      });
+    } catch (error) {
+      console.error('Error syncing video state:', error);
     }
   }, [roomCode, isHost, videoUrl]);
 
-  // Poll for updates (simulated real-time)
-  useEffect(() => {
-    if (!isInRoom || !roomCode) return;
-    
-    syncIntervalRef.current = setInterval(() => {
-      const roomInfo = localStorage.getItem(`watchparty_${roomCode}`);
-      if (roomInfo) {
-        const room = JSON.parse(roomInfo);
-        
-        // Update participants
-        setParticipants(room.participants || []);
-        
-        // Update messages
-        if (room.messages && room.messages.length !== messages.length) {
-          setMessages(room.messages);
-        }
-        
-        // Sync video state if not host
-        if (!isHost) {
-          if (room.videoUrl !== videoUrl) {
-            setVideoUrl(room.videoUrl);
-          }
-          setIsPlaying(room.isPlaying);
-          setCurrentTime(room.currentTime);
-        }
-      }
-    }, SYNC_INTERVAL);
-    
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
-  }, [isInRoom, roomCode, isHost, messages.length, videoUrl]);
-
   // Set video URL (host only)
-  const setVideo = (url) => {
+  const setVideo = async (url) => {
     if (!isHost) return;
     setVideoUrl(url);
-    syncVideoState(false, 0);
-    addSystemMessage(`Now watching: ${selectedContent?.title || 'New video'}`);
+    await syncVideoState(false, 0, url);
+    await addSystemMessage(roomCode, `Now watching: ${selectedContent?.title || 'New video'}`);
   };
 
   // Play/Pause (host only)
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     if (!isHost) return;
     const newState = !isPlaying;
     setIsPlaying(newState);
-    syncVideoState(newState, currentTime);
-    addSystemMessage(newState ? '▶️ Video playing' : '⏸️ Video paused');
+    await syncVideoState(newState, currentTime);
+    await addSystemMessage(roomCode, newState ? '▶️ Video playing' : '⏸️ Video paused');
   };
 
   // Select content from collection
   const selectFromCollection = () => {
-    // This would open a modal to select from collection
-    // For now, we'll use a simple prompt
     const tmdbId = prompt('Enter TMDB ID or paste video URL:');
     if (tmdbId) {
       if (tmdbId.startsWith('http')) {
         setVideoUrl(tmdbId);
         setVideo(tmdbId);
       } else {
-        // Assume it's a movie ID, construct embed URL
         const url = `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
         setVideoUrl(url);
         setVideo(url);

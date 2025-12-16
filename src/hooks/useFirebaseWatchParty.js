@@ -12,7 +12,8 @@ import {
   remove, 
   onValue, 
   push,
-  serverTimestamp 
+  serverTimestamp,
+  hasFirebaseConfig
 } from '../config/firebase';
 
 // Generate a random room code
@@ -563,7 +564,8 @@ export function useFirebaseWatchParty() {
     sendReaction,
     
     // Utilities
-    setError
+    setError,
+    hasFirebaseConfig
   };
 }
 

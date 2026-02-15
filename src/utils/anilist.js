@@ -294,6 +294,26 @@ export async function getAnimeDetails(id) {
             }
           }
         }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              idMal
+              title {
+                romaji
+                english
+              }
+              coverImage {
+                large
+              }
+              episodes
+              format
+              status
+              seasonYear
+            }
+          }
+        }
         streamingEpisodes {
           title
           thumbnail
@@ -399,6 +419,8 @@ function normalizeAnime(anime) {
     format: anime.format,
     status: anime.status,
     genres: anime.genres || [],
+    studios: anime.studios?.nodes?.map(s => s.name) || [],
+    nextAiringEpisode: anime.nextAiringEpisode || null,
     // Keep original fields for compatibility
     poster_path: anime.coverImage.extraLarge || anime.coverImage.large,
     vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
@@ -437,7 +459,8 @@ function normalizeAnimeDetails(anime) {
       ?.filter(r => r.mediaRecommendation)
       ?.map(r => normalizeAnime(r.mediaRecommendation)) || [],
     streamingEpisodes: anime.streamingEpisodes || [],
-    nextAiringEpisode: anime.nextAiringEpisode
+    nextAiringEpisode: anime.nextAiringEpisode,
+    relations: anime.relations?.edges || []
   };
 }
 
@@ -624,6 +647,148 @@ export async function getUpcomingAnime(page = 1, perPage = 24) {
   };
 }
 
+/**
+ * Get the current anime season and year
+ * @returns {Object} { season, year, label }
+ */
+export function getCurrentSeason() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  if (month <= 3) return { season: 'WINTER', year, label: `Winter ${year}` };
+  if (month <= 6) return { season: 'SPRING', year, label: `Spring ${year}` };
+  if (month <= 9) return { season: 'SUMMER', year, label: `Summer ${year}` };
+  return { season: 'FALL', year, label: `Fall ${year}` };
+}
+
+/**
+ * Get anime for a specific season (simulcast-style)
+ * @param {string} season - WINTER | SPRING | SUMMER | FALL
+ * @param {number} seasonYear - Year
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} Season anime
+ */
+export async function getSeasonAnime(season, seasonYear, page = 1, perPage = 24) {
+  const query = `
+    query ($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { total currentPage hasNextPage }
+        media(
+          type: ANIME, season: $season, seasonYear: $seasonYear,
+          sort: [POPULARITY_DESC], format_in: [TV, TV_SHORT]
+        ) {
+          id idMal
+          title { romaji english }
+          coverImage { large extraLarge }
+          bannerImage
+          averageScore seasonYear season
+          description episodes duration format status genres
+          nextAiringEpisode { airingAt timeUntilAiring episode }
+          studios(isMain: true) { nodes { name } }
+        }
+      }
+    }
+  `;
+  const data = await graphqlFetch(query, { page, perPage, season, seasonYear });
+  return {
+    pageInfo: data.Page.pageInfo,
+    results: data.Page.media.map(normalizeAnime)
+  };
+}
+
+/**
+ * Get top rated anime of all time
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} Top rated anime
+ */
+export async function getTopRatedAnime(page = 1, perPage = 24) {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { total currentPage hasNextPage }
+        media(type: ANIME, sort: [SCORE_DESC], format_in: [TV, TV_SHORT, MOVIE], averageScore_greater: 75) {
+          id idMal
+          title { romaji english }
+          coverImage { large extraLarge }
+          bannerImage
+          averageScore seasonYear season
+          description episodes duration format status genres
+          studios(isMain: true) { nodes { name } }
+        }
+      }
+    }
+  `;
+  const data = await graphqlFetch(query, { page, perPage });
+  return {
+    pageInfo: data.Page.pageInfo,
+    results: data.Page.media.map(normalizeAnime)
+  };
+}
+
+/**
+ * Get recently updated / newly added anime
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} Recently updated anime
+ */
+export async function getRecentlyUpdatedAnime(page = 1, perPage = 24) {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { total currentPage hasNextPage }
+        media(type: ANIME, sort: [UPDATED_AT_DESC], status: RELEASING, format_in: [TV, TV_SHORT]) {
+          id idMal
+          title { romaji english }
+          coverImage { large extraLarge }
+          bannerImage
+          averageScore seasonYear season
+          description episodes duration format status genres
+          nextAiringEpisode { airingAt timeUntilAiring episode }
+          studios(isMain: true) { nodes { name } }
+        }
+      }
+    }
+  `;
+  const data = await graphqlFetch(query, { page, perPage });
+  return {
+    pageInfo: data.Page.pageInfo,
+    results: data.Page.media.map(normalizeAnime)
+  };
+}
+
+/**
+ * Get anime by genre
+ * @param {string} genre - Genre name
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} Genre anime
+ */
+export async function getAnimeByGenre(genre, page = 1, perPage = 24) {
+  const query = `
+    query ($page: Int, $perPage: Int, $genre: String) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { total currentPage hasNextPage }
+        media(type: ANIME, genre: $genre, sort: [POPULARITY_DESC], format_in: [TV, TV_SHORT, MOVIE]) {
+          id idMal
+          title { romaji english }
+          coverImage { large extraLarge }
+          bannerImage
+          averageScore seasonYear season
+          description episodes duration format status genres
+          studios(isMain: true) { nodes { name } }
+        }
+      }
+    }
+  `;
+  const data = await graphqlFetch(query, { page, perPage, genre });
+  return {
+    pageInfo: data.Page.pageInfo,
+    results: data.Page.media.map(normalizeAnime)
+  };
+}
+
 export default {
   getPopularAnime,
   searchAnime,
@@ -631,5 +796,10 @@ export default {
   getTrendingAnime,
   getAnimeGenres,
   getStreamingSources,
-  getUpcomingAnime
+  getUpcomingAnime,
+  getCurrentSeason,
+  getSeasonAnime,
+  getTopRatedAnime,
+  getRecentlyUpdatedAnime,
+  getAnimeByGenre
 };

@@ -499,6 +499,7 @@ function getSortMapping(sort) {
 export function getStreamingSources(anime, episode = 1, language = 'sub') {
   const isDub = language === 'dub';
   const anilistId = anime.id;
+  const malId = anime.malId || anime.idMal;
   
   // Create clean title slug for fallback
   const titleSlug = (anime.title || '')
@@ -509,38 +510,235 @@ export function getStreamingSources(anime, episode = 1, language = 'sub') {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
   
-  return [
+  const sources = [
+    // Videasy - Best quality, auto next episode
+    {
+      name: '▶ Videasy',
+      url: `https://player.videasy.net/anime/${anilistId}/${episode}?${isDub ? 'dub=true&' : ''}color=d4af37&nextEpisode=true&autoplayNextEpisode=true&overlay=true`
+    },
     // VidSrc.cc - REQUIRES 'ani' prefix for AniList IDs
     {
       name: 'VidSrc CC',
       url: `https://vidsrc.cc/v2/embed/anime/ani${anilistId}/${episode}/${isDub ? 'dub' : 'sub'}`
     },
-    // VidSrc.icu - Uses AniList ID directly
+    // VidSrc.icu - Uses AniList ID directly with 0=sub, 1=dub
     {
       name: 'VidSrc ICU',
       url: `https://vidsrc.icu/embed/anime/${anilistId}/${episode}/${isDub ? '1' : '0'}`
     },
-    // VidPlus - Uses AniList ID directly
+    // VidPlus - Uses AniList ID
     {
       name: 'VidPlus',
       url: `https://player.vidplus.to/embed/anime/${anilistId}/${episode}?dub=${isDub}`
     },
-    // Videasy
-    {
-      name: 'Videasy',
-      url: `https://player.videasy.net/anime/${anilistId}/${episode}?${isDub ? 'dub=true&' : ''}color=d4af37&nextEpisode=true&autoplayNextEpisode=true&overlay=true`
-    },
-    // 2Anime
+    // 2Anime 
     {
       name: '2Anime',
       url: `https://2anime.xyz/embed/${anilistId}/${episode}${isDub ? '?dub=1' : ''}`
     },
-    // AnimeEmbed - Title-based fallback
+    // VidSrc.net - Uses AniList with ani prefix
+    {
+      name: 'VidSrc Net',
+      url: `https://vidsrc.net/embed/anime/ani${anilistId}/${episode}/${isDub ? 'dub' : 'sub'}`
+    },
+    // Embed.su - anime support with AniList ID
+    {
+      name: 'Embed SU',
+      url: `https://embed.su/embed/anime/ani${anilistId}/${episode}`
+    },
+    // VidLink - anime support
+    {
+      name: 'VidLink',
+      url: `https://vidlink.pro/anime/${anilistId}/${episode}?primaryColor=d4af37&autoplay=true`
+    },
+    // AnimeEmbed - Title-based fallback (works for most anime)
     {
       name: 'AnimeEmbed',
       url: `https://anime.autoembed.cc/embed/${titleSlug}-episode-${episode}`
-    }
+    },
+    // AnyEmbed - Uses title slug
+    {
+      name: 'AnyEmbed',
+      url: `https://anyembed.xyz/embed/anime/${titleSlug}-episode-${episode}`
+    },
+    // SuperEmbed - Uses TMDB/MAL with anime flag
+    ...(malId ? [{
+      name: 'SuperEmbed',
+      url: `https://multiembed.mov/?video_id=${malId}&mal=1&anime=1&e=${episode}`
+    }] : []),
+    // 2Embed anime via MAL
+    ...(malId ? [{
+      name: '2Embed',
+      url: `https://www.2embed.cc/embedanime/${malId}?ep=${episode}`
+    }] : [])
   ];
+  
+  return sources;
+}
+
+/**
+ * Fetch minimal relation data for an anime (used in chain traversal)
+ * @param {number} id - AniList anime ID
+ * @returns {Promise<Object>} Minimal anime data with relations
+ */
+async function fetchAnimeRelations(id) {
+  const query = `
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        id
+        idMal
+        title { romaji english }
+        episodes
+        format
+        status
+        seasonYear
+        duration
+        coverImage { large }
+        relations {
+          edges {
+            relationType
+            node {
+              id idMal
+              title { romaji english }
+              episodes format status seasonYear duration
+              coverImage { large }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await graphqlFetch(query, { id });
+  return data.Media;
+}
+
+/**
+ * Build the complete season chain for an anime by traversing PREQUEL/SEQUEL relations.
+ * This resolves the full franchise order regardless of which season the user clicked on.
+ * 
+ * @param {number} animeId - AniList ID of any anime in the franchise
+ * @param {Object} [existingDetails] - If we already have full details with relations, pass them to save an API call
+ * @returns {Promise<Array>} Complete ordered season chain
+ *   Each entry: { seasonNumber, anilistId, malId, title, episodeCount, duration, format, status, year, poster }
+ */
+export async function getAnimeSeasonChain(animeId, existingDetails = null) {
+  const visited = new Set();
+  const chainMap = new Map(); // id -> anime data
+  
+  // Recursive traversal function
+  async function traverse(id) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    
+    let anime;
+    
+    // Use existing details if this is the starting anime and we have them
+    if (id === animeId && existingDetails && existingDetails.relations) {
+      anime = existingDetails;
+    } else {
+      try {
+        anime = await fetchAnimeRelations(id);
+      } catch (e) {
+        console.error(`Failed to fetch relations for anime ${id}:`, e);
+        return;
+      }
+    }
+    
+    if (!anime) return;
+    
+    chainMap.set(id, {
+      id: anime.id,
+      malId: anime.idMal,
+      title: anime.title?.english || anime.title?.romaji || `Season`,
+      episodes: anime.episodes,
+      format: anime.format,
+      status: anime.status,
+      year: anime.seasonYear,
+      duration: anime.duration,
+      poster: anime.coverImage?.large
+    });
+    
+    // Find PREQUEL and SEQUEL TV entries
+    const tvRelations = (anime.relations?.edges || anime.relations || [])
+      .filter(edge => {
+        const rel = edge.relationType;
+        const fmt = edge.node?.format;
+        return (rel === 'SEQUEL' || rel === 'PREQUEL') && (fmt === 'TV' || fmt === 'TV_SHORT');
+      });
+    
+    // Traverse each related entry
+    for (const edge of tvRelations) {
+      if (edge.node?.id && !visited.has(edge.node.id)) {
+        // Store the node data we already have to potentially skip an API call
+        chainMap.set(edge.node.id, {
+          id: edge.node.id,
+          malId: edge.node.idMal,
+          title: edge.node.title?.english || edge.node.title?.romaji || `Season`,
+          episodes: edge.node.episodes,
+          format: edge.node.format,
+          status: edge.node.status,
+          year: edge.node.seasonYear,
+          duration: edge.node.duration,
+          poster: edge.node.coverImage?.large
+        });
+        
+        // Only traverse deeper if we need to find MORE relations
+        // (limit depth to avoid infinite loops and excessive API calls)
+        if (visited.size < 15) {
+          await traverse(edge.node.id);
+        }
+      }
+    }
+  }
+  
+  // Start traversal from the given anime
+  await traverse(animeId);
+  
+  // If only one entry found, no season chain exists
+  if (chainMap.size <= 1) {
+    const single = chainMap.get(animeId);
+    if (!single) return [];
+    return [{
+      seasonNumber: 1,
+      anilistId: single.id,
+      malId: single.malId,
+      title: single.title,
+      episodeCount: single.episodes || 12,
+      duration: single.duration,
+      format: single.format,
+      status: single.status,
+      year: single.year,
+      poster: single.poster,
+      startEp: 1,
+      endEp: single.episodes || 12
+    }];
+  }
+  
+  // Now we need to ORDER the chain. Sort by year, then by ID as tiebreaker.
+  // The earliest year = Season 1.
+  const entries = Array.from(chainMap.values());
+  entries.sort((a, b) => {
+    // Sort by year first
+    if (a.year && b.year && a.year !== b.year) return a.year - b.year;
+    // Then by AniList ID (earlier entries tend to have lower IDs)
+    return a.id - b.id;
+  });
+  
+  // Build final season array
+  return entries.map((entry, index) => ({
+    seasonNumber: index + 1,
+    anilistId: entry.id,
+    malId: entry.malId,
+    title: entry.title,
+    episodeCount: entry.episodes || 12,
+    duration: entry.duration,
+    format: entry.format,
+    status: entry.status,
+    year: entry.year,
+    poster: entry.poster,
+    startEp: 1,
+    endEp: entry.episodes || 12
+  }));
 }
 
 /**
@@ -801,5 +999,6 @@ export default {
   getSeasonAnime,
   getTopRatedAnime,
   getRecentlyUpdatedAnime,
-  getAnimeByGenre
+  getAnimeByGenre,
+  getAnimeSeasonChain
 };

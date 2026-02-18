@@ -6,12 +6,52 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as tmdbApi from '../../utils/tmdb';
 import * as anilistApi from '../../utils/anilist';
-import { getStreamingSources, formatRuntime, calculateEndTime } from '../../utils/helpers';
+import {
+  getStreamingSources as getMovieTVSources,
+  formatRuntime,
+  calculateEndTime
+} from '../../utils/helpers';
+import {
+  getStreamingSources as getAnimeSources,
+  getAnimeSeasonChain
+} from '../../utils/anilist';
 import * as watchTracker from '../../utils/watchTracker';
 import ModalBackdrop, { ModalContent, ModalHeader, ModalBody } from '../common/ModalBackdrop';
 import ContentCard from '../cards/ContentCard';
 import CastButton from '../ui/CastButton';
 import './PlayerModal.css';
+
+/* ----------------------------------------
+   Helper: Generate episodes for an anime season
+   ---------------------------------------- */
+function generateAnimeEpisodesForSeason(season, episodeDuration) {
+  const count = season.episodeCount || 12;
+  return Array.from({ length: count }, (_, i) => ({
+    episodeNumber: i + 1,
+    name: `Episode ${i + 1}`,
+    runtime: episodeDuration || 24
+  }));
+}
+
+/* ----------------------------------------
+   Helper: Get streaming sources based on item type.
+   For anime, uses the season's own anilistId/malId.
+   For movie/TV, uses the helpers.js version.
+   ---------------------------------------- */
+function getSourcesForItem(item, season, episode, seasons, language) {
+  if (item.type === 'anime') {
+    // Find the season data to get its unique AniList ID
+    const seasonData = seasons?.find(s => s.seasonNumber === parseInt(season)) || seasons?.[0];
+    const animeObj = {
+      id: seasonData?.anilistId || item.id,
+      malId: seasonData?.malId || item.malId || item.idMal,
+      title: seasonData?.title || item.title || item.name
+    };
+    return getAnimeSources(animeObj, parseInt(episode) || 1, language || 'sub');
+  }
+  // Movie / TV - uses helpers.js version
+  return getMovieTVSources(item, season, episode);
+}
 
 function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
   const { state, actions } = useApp();
@@ -136,17 +176,22 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
       
       // Set immediate defaults based on item type
       if (item.type === 'anime') {
-        const epCount = item.episodes || item.totalEpisodes || 24;
-        const defaultEps = Array.from({ length: Math.max(epCount, 1) }, (_, i) => ({
-          episodeNumber: i + 1,
-          name: `Episode ${i + 1}`,
-          runtime: 24
-        }));
-        setEpisodes(defaultEps);
-        setSeasons([]);
+        // Immediate fallback: 1 season with item's episode count
+        const epCount = item.episodes || item.totalEpisodes || 12;
+        const fallbackSeasons = [{
+          seasonNumber: 1,
+          anilistId: item.id,
+          malId: item.malId || item.idMal,
+          title: item.title || item.name,
+          episodeCount: epCount,
+          startEp: 1,
+          endEp: epCount
+        }];
+        setSeasons(fallbackSeasons);
+        setEpisodes(generateAnimeEpisodesForSeason(fallbackSeasons[0], 24));
         
-        // Get streaming sources with language parameter for anime
-        const streamSources = getStreamingSources({ ...item, language: animeLanguage }, 1, 1);
+        // Get initial streaming sources using the anime-specific function
+        const streamSources = getSourcesForItem(item, 1, 1, fallbackSeasons, animeLanguage);
         setSources(streamSources);
         if (streamSources.length > 0) {
           setCurrentSource(streamSources[0].url);
@@ -160,15 +205,14 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
         }));
         setEpisodes(defaultEps);
         
-        // Get streaming sources for TV
-        const streamSources = getStreamingSources(item, 1, 1);
+        const streamSources = getSourcesForItem(item, 1, 1, [], 'sub');
         setSources(streamSources);
         if (streamSources.length > 0) {
           setCurrentSource(streamSources[0].url);
         }
       } else {
         // Movies
-        const streamSources = getStreamingSources(item, 1, 1);
+        const streamSources = getSourcesForItem(item, 1, 1, [], 'sub');
         setSources(streamSources);
         if (streamSources.length > 0) {
           setCurrentSource(streamSources[0].url);
@@ -213,7 +257,6 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
           }
         } catch (e) {
           console.error('Error getting TV data:', e);
-          // Keep defaults set in initial effect
         }
         
         // Get trailer
@@ -225,29 +268,52 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
         setRecommendations(recs);
         
       } else if (item.type === 'anime') {
-        // Get detailed anime info
+        // === SMART SEASON CHAIN RESOLUTION ===
+        // This traverses PREQUEL/SEQUEL relations recursively to build
+        // the complete franchise order with correct episode counts per season.
         try {
+          // 1. Get full details for runtime + recommendations
           const animeDetails = await anilistApi.getAnimeDetails(item.id);
           if (animeDetails) {
-            // Update episode count if we got it
-            if (animeDetails.episodes) {
-              const animeEps = Array.from({ length: animeDetails.episodes }, (_, i) => ({
-                episodeNumber: i + 1,
-                name: `Episode ${i + 1}`,
-                runtime: animeDetails.duration || 24
-              }));
-              setEpisodes(animeEps);
-            }
             setRuntime(animeDetails.duration);
             
-            // Get recommendations from anime details
             if (animeDetails.recommendations) {
               setRecommendations(animeDetails.recommendations);
             }
           }
+          
+          // 2. Build the full season chain (recursive PREQUEL/SEQUEL traversal)
+          console.log('Building season chain for anime:', item.id, item.title);
+          const seasonChain = await getAnimeSeasonChain(item.id, animeDetails);
+          console.log('Season chain result:', seasonChain);
+          
+          if (seasonChain && seasonChain.length > 0) {
+            setSeasons(seasonChain);
+            
+            // Figure out which season the user actually clicked on
+            // (they might have clicked season 3 of a franchise)
+            const clickedSeasonIndex = seasonChain.findIndex(s => s.anilistId === item.id);
+            const startSeason = clickedSeasonIndex >= 0 ? clickedSeasonIndex + 1 : 1;
+            setSelectedSeason(startSeason);
+            
+            // Generate episodes for that season
+            const targetSeason = seasonChain[startSeason - 1];
+            const eps = generateAnimeEpisodesForSeason(
+              targetSeason,
+              targetSeason.duration || animeDetails?.duration || 24
+            );
+            setEpisodes(eps);
+            
+            // Update sources with the correct season's anilistId
+            const newSources = getSourcesForItem(item, startSeason, 1, seasonChain, animeLanguage);
+            setSources(newSources);
+            if (newSources.length > 0) {
+              setCurrentSource(newSources[0].url);
+            }
+          }
         } catch (e) {
-          console.error('Error getting anime data:', e);
-          // Keep defaults set in initial effect
+          console.error('Error building anime season chain:', e);
+          // Keep the fallback defaults set in initial effect
         }
       }
     } catch (error) {
@@ -256,33 +322,54 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
     } finally {
       setIsLoading(false);
     }
-  }, [item, actions]);
+  }, [item, actions, animeLanguage]);
 
   // Handle season change
   const handleSeasonChange = async (seasonNum) => {
-    setSelectedSeason(parseInt(seasonNum));
+    const sNum = parseInt(seasonNum);
+    setSelectedSeason(sNum);
     setSelectedEpisode(1);
     setIsWatched(false);
     
     // Update watch session with new season
     if (sessionStartedRef.current) {
-      watchTracker.startWatchSession(item, 1, parseInt(seasonNum));
+      watchTracker.startWatchSession(item, 1, sNum);
     }
     
     if (item.type === 'tv') {
       try {
-        const eps = await tmdbApi.getSeasonEpisodes(item.id, parseInt(seasonNum));
+        const eps = await tmdbApi.getSeasonEpisodes(item.id, sNum);
         setEpisodes(eps || []);
       } catch (error) {
         console.error('Error loading episodes:', error);
-        // Generate default episodes
         const defaultEps = Array.from({ length: 10 }, (_, i) => ({
           episodeNumber: i + 1,
           name: `Episode ${i + 1}`
         }));
         setEpisodes(defaultEps);
       }
+    } else if (item.type === 'anime') {
+      // Find the selected season data and generate its episodes
+      const seasonData = seasons.find(s => s.seasonNumber === sNum);
+      if (seasonData) {
+        const animeEps = generateAnimeEpisodesForSeason(seasonData, seasonData.duration || runtime || 24);
+        setEpisodes(animeEps);
+        
+        // Log which AniList ID we're switching to
+        console.log(`Season ${sNum} → AniList ID: ${seasonData.anilistId}, Episodes: ${seasonData.episodeCount}`);
+      }
     }
+    
+    // Update sources — getSourcesForItem handles anime ID switching automatically
+    const newSources = getSourcesForItem(item, sNum, 1, seasons, animeLanguage);
+    setSources(newSources);
+    if (newSources.length > 0) {
+      setCurrentSource(newSources[0].url);
+    }
+    
+    const seasonData = seasons.find(s => s.seasonNumber === sNum);
+    const seasonLabel = seasonData?.title ? `${seasonData.title}` : `Season ${sNum}`;
+    actions.addNotification(`Switched to ${seasonLabel}`, 'info');
   };
 
   // Handle episode change
@@ -296,12 +383,8 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
       watchTracker.startWatchSession(item, epNum, selectedSeason);
     }
     
-    // Update sources with new episode
-    const newSources = getStreamingSources(
-      { ...item, language: animeLanguage },
-      selectedSeason,
-      epNum
-    );
+    // Update sources — uses correct anilistId per season for anime
+    const newSources = getSourcesForItem(item, selectedSeason, epNum, seasons, animeLanguage);
     setSources(newSources);
     if (newSources.length > 0) {
       setCurrentSource(newSources[0].url);
@@ -314,11 +397,8 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
   const handleLanguageToggle = (lang) => {
     setAnimeLanguage(lang);
     
-    const newSources = getStreamingSources(
-      { ...item, language: lang },
-      selectedSeason,
-      selectedEpisode
-    );
+    // Re-generate sources with new language, using correct season anilistId
+    const newSources = getSourcesForItem(item, selectedSeason, selectedEpisode, seasons, lang);
     setSources(newSources);
     if (newSources.length > 0) {
       setCurrentSource(newSources[0].url);
@@ -413,24 +493,39 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
           {/* Episode Selector (TV/Anime only) */}
           {(item.type === 'tv' || item.type === 'anime') && (
             <div className="episode-selector">
-              {/* Season Selector (TV only) */}
-              {item.type === 'tv' && (
+              {/* Season Selector */}
+              {seasons.length > 0 && (
                 <div className="selector-group">
-                  <label>Season</label>
+                  <label>
+                    Season
+                    {isLoading && item.type === 'anime' && (
+                      <span className="loading-seasons"> (loading...)</span>
+                    )}
+                  </label>
                   <select
                     value={selectedSeason}
                     onChange={(e) => handleSeasonChange(e.target.value)}
                     className="elegant-select"
                   >
-                    {seasons.length > 0 ? (
-                      seasons.map((season) => (
+                    {seasons.map((season) => {
+                      // Build display label
+                      let label = '';
+                      if (item.type === 'anime') {
+                        label = `S${season.seasonNumber}`;
+                        if (season.title) label += `: ${season.title}`;
+                        if (season.year) label += ` (${season.year})`;
+                        if (season.episodeCount) label += ` — ${season.episodeCount} eps`;
+                        if (season.status === 'RELEASING') label += ' 🔴';
+                      } else {
+                        label = `Season ${season.seasonNumber}`;
+                        if (season.episodeCount) label += ` (${season.episodeCount} eps)`;
+                      }
+                      return (
                         <option key={season.seasonNumber} value={season.seasonNumber}>
-                          Season {season.seasonNumber} {season.episodeCount ? `(${season.episodeCount} eps)` : ''}
+                          {label}
                         </option>
-                      ))
-                    ) : (
-                      <option value={1}>Season 1</option>
-                    )}
+                      );
+                    })}
                   </select>
                 </div>
               )}
@@ -447,6 +542,7 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
                     episodes.map((ep) => (
                       <option key={ep.episodeNumber} value={ep.episodeNumber}>
                         Ep {ep.episodeNumber}{ep.name && ep.name !== `Episode ${ep.episodeNumber}` ? `: ${ep.name}` : ''}
+                        {ep.runtime ? ` (${ep.runtime}m)` : ''}
                       </option>
                     ))
                   ) : (
@@ -473,14 +569,21 @@ function PlayerModal({ isOpen, onClose, item, onShowCastCrew, onOpenPiP }) {
                 </div>
               )}
               
-              {/* Episode count info */}
+              {/* Season/Episode summary info */}
               <div className="episode-info">
-                {item.type === 'anime' && episodes.length > 0 && (
-                  <span className="episode-count">{episodes.length} Episodes</span>
-                )}
-                {item.type === 'tv' && seasons.length > 0 && (
+                {seasons.length > 1 && (
                   <span className="episode-count">{seasons.length} Seasons</span>
                 )}
+                {episodes.length > 0 && (
+                  <span className="episode-count">{episodes.length} Episodes</span>
+                )}
+                {item.type === 'anime' && seasons.length > 0 && (() => {
+                  const currentSeason = seasons.find(s => s.seasonNumber === selectedSeason);
+                  if (currentSeason?.status === 'RELEASING') {
+                    return <span className="episode-count airing-badge">🔴 Airing</span>;
+                  }
+                  return null;
+                })()}
               </div>
             </div>
           )}
